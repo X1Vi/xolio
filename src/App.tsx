@@ -5,7 +5,7 @@ import { useTheme } from './hooks/useTheme';
 import { loadBook, type Book } from './lib/books';
 import { deleteLibraryEntry, getAllLibraryEntries, putLibraryEntry } from './lib/db';
 import { canPickFiles, pickBookHandle, type LibraryEntry } from './lib/library';
-import { createCopyEntry, createHandleEntry, openEntry, saveEntry } from './lib/libraryOps';
+import { createCopyEntry, createHandleEntry, openEntry, saveNewEntry, type NewLibraryEntry } from './lib/libraryOps';
 
 interface ActiveBook {
   readonly entryId: string;
@@ -60,10 +60,10 @@ export function App() {
       setError(null);
       try {
         const book = await loadBook(file);
-        const entry = createCopyEntry(file, book);
-        await saveEntry(entry);
+        const created = createCopyEntry(file, book);
+        await saveNewEntry(created);
         await refresh();
-        openBook(entry.id, book);
+        openBook(created.entry.id, book);
       } catch (cause) {
         setError(describeError(cause));
       } finally {
@@ -83,15 +83,15 @@ export function App() {
       setBusy(true);
       const file = await handle.getFile();
       const book = await loadBook(file);
-      let entry: LibraryEntry = createHandleEntry(handle, book, file.size);
+      let created: NewLibraryEntry = { entry: createHandleEntry(handle, book, file.size) };
       try {
-        await saveEntry(entry);
+        await saveNewEntry(created);
       } catch {
-        entry = createCopyEntry(file, book);
-        await saveEntry(entry);
+        created = createCopyEntry(file, book);
+        await saveNewEntry(created);
       }
       await refresh();
-      openBook(entry.id, book);
+      openBook(created.entry.id, book);
     } catch (cause) {
       setError(describeError(cause));
     } finally {
@@ -134,6 +134,21 @@ export function App() {
     [refresh],
   );
 
+  const toggleFavorite = useCallback(
+    (entry: LibraryEntry) => {
+      void (async () => {
+        setError(null);
+        try {
+          await putLibraryEntry({ ...entry, favorite: !entry.favorite });
+          await refresh();
+        } catch (cause) {
+          setError(describeError(cause));
+        }
+      })();
+    },
+    [refresh],
+  );
+
   if (active === null) {
     return (
       <Library
@@ -151,6 +166,7 @@ export function App() {
           void openFromLibrary(entry);
         }}
         onDelete={removeFromLibrary}
+        onToggleFavorite={toggleFavorite}
       />
     );
   }

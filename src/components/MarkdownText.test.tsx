@@ -30,4 +30,27 @@ describe('MarkdownText', () => {
     expect(container.querySelector('.katex')).not.toBeNull();
     expect(container.textContent).toContain('H');
   });
+
+  it('renders LaTeX bracket and parenthesis math delimiters', () => {
+    const { container } = render(
+      <MarkdownText text={'Before\n\n\\[\nE = mc^2 \\tag{1}\n\\]\n\nThe value \\(x^2\\) matters.'} />,
+    );
+    expect(container.querySelector('.katex-display')).not.toBeNull();
+    expect(container.querySelectorAll('.katex').length).toBe(2);
+    expect(container.textContent).toContain('Before');
+    expect(container.textContent).toContain('matters.');
+  });
+
+  it('leaves math delimiters inside code untouched', () => {
+    const { container } = render(<MarkdownText text={'`\\[x\\]` and\n\n```\n\\(y\\)\n```'} />);
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.textContent).toContain('\\[x\\]');
+    expect(container.textContent).toContain('\\(y\\)');
+  });
+
+  it('renders multi-line display math whose closing fence follows content', () => {
+    const { container } = render(<MarkdownText text={'$$f_t = x,\n\\qquad (2)$$'} />);
+    expect(container.querySelector('.katex-display')).not.toBeNull();
+    expect(container.querySelector('.katex-error')).toBeNull();
+  });
 });

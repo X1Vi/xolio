@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LibraryEntry } from '../lib/library';
 import { Library } from './Library';
 
@@ -11,18 +11,29 @@ const entry: LibraryEntry = {
   size: 2048,
   addedAt: 0,
   lastOpenedAt: 0,
-  data: new ArrayBuffer(4),
 };
 
-function renderLibrary(): void {
+const favoriteEntry: LibraryEntry = {
+  ...entry,
+  id: 'entry-2',
+  name: 'Favorite.epub',
+  format: 'epub',
+  favorite: true,
+};
+
+function renderLibrary(
+  entries: readonly LibraryEntry[] = [entry],
+  onToggleFavorite: (entry: LibraryEntry) => void = () => undefined,
+): void {
   render(
     <Library
-      entries={[entry]}
+      entries={entries}
       busy={false}
       error={null}
       canPick={false}
       onOpen={() => undefined}
       onDelete={() => undefined}
+      onToggleFavorite={onToggleFavorite}
       onAddFile={() => undefined}
       onAddViaPicker={() => undefined}
     />,
@@ -50,5 +61,32 @@ describe('Library view toggle', () => {
     window.localStorage.setItem('reader-library-view', 'list');
     renderLibrary();
     expect(screen.getByRole('list')).toHaveAttribute('data-view', 'list');
+  });
+});
+
+describe('Library favorites', () => {
+  it('toggles a book into favorites', () => {
+    const onToggleFavorite = vi.fn();
+    renderLibrary([entry], onToggleFavorite);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Book.pdf to favorites' }));
+    expect(onToggleFavorite).toHaveBeenCalledWith(entry);
+  });
+
+  it('filters to only favorite books', () => {
+    renderLibrary([entry, favoriteEntry]);
+
+    fireEvent.click(screen.getByRole('button', { name: '★ Favorites' }));
+
+    expect(screen.queryByText('Book.pdf')).not.toBeInTheDocument();
+    expect(screen.getByText('Favorite.epub')).toBeInTheDocument();
+  });
+
+  it('shows an empty state when there are no favorites', () => {
+    renderLibrary([entry]);
+
+    fireEvent.click(screen.getByRole('button', { name: '★ Favorites' }));
+
+    expect(screen.getByText(/No favorites yet/)).toBeInTheDocument();
   });
 });

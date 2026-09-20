@@ -15,11 +15,11 @@ interface LibraryEntryBase {
   readonly size: number;
   readonly addedAt: number;
   readonly lastOpenedAt: number;
+  readonly favorite?: boolean;
 }
 
 export interface LibraryCopyEntry extends LibraryEntryBase {
   readonly kind: 'copy';
-  readonly data: ArrayBuffer | string;
 }
 
 export interface LibraryHandleEntry extends LibraryEntryBase {
@@ -28,6 +28,11 @@ export interface LibraryHandleEntry extends LibraryEntryBase {
 }
 
 export type LibraryEntry = LibraryCopyEntry | LibraryHandleEntry;
+
+export interface LibraryContent {
+  readonly id: string;
+  readonly data: ArrayBuffer | string;
+}
 
 export interface PickerFileType {
   readonly description: string;

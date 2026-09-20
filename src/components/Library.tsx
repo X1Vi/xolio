@@ -1,16 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryEntry } from '../lib/library';
 import { APP_NAME, APP_VERSION } from '../version';
 
 type LibraryView = 'grid' | 'list';
+type LibraryFilter = 'all' | 'favorites';
 
 const VIEW_STORAGE_KEY = 'reader-library-view';
+const FILTER_STORAGE_KEY = 'reader-library-filter';
 
 function loadView(): LibraryView {
   try {
     return window.localStorage.getItem(VIEW_STORAGE_KEY) === 'list' ? 'list' : 'grid';
   } catch {
     return 'grid';
+  }
+}
+
+function loadFilter(): LibraryFilter {
+  try {
+    return window.localStorage.getItem(FILTER_STORAGE_KEY) === 'favorites' ? 'favorites' : 'all';
+  } catch {
+    return 'all';
   }
 }
 
@@ -21,6 +31,7 @@ interface LibraryProps {
   readonly canPick: boolean;
   readonly onOpen: (entry: LibraryEntry) => void;
   readonly onDelete: (entry: LibraryEntry) => void;
+  readonly onToggleFavorite: (entry: LibraryEntry) => void;
   readonly onAddFile: (file: File) => void;
   readonly onAddViaPicker: () => void;
 }
@@ -44,10 +55,21 @@ function formatDate(timestamp: number): string {
 }
 
 export function Library(props: LibraryProps) {
-  const { entries, busy, error, canPick, onOpen, onDelete, onAddFile, onAddViaPicker } = props;
+  const {
+    entries,
+    busy,
+    error,
+    canPick,
+    onOpen,
+    onDelete,
+    onToggleFavorite,
+    onAddFile,
+    onAddViaPicker,
+  } = props;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [view, setView] = useState<LibraryView>(loadView);
+  const [filter, setFilter] = useState<LibraryFilter>(loadFilter);
 
   useEffect(() => {
     try {
@@ -56,6 +78,22 @@ export function Library(props: LibraryProps) {
       // storage can be unavailable; the view still works for this session
     }
   }, [view]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FILTER_STORAGE_KEY, filter);
+    } catch {
+      // storage can be unavailable; the filter still works for this session
+    }
+  }, [filter]);
+
+  const visibleEntries = useMemo(
+    () =>
+      filter === 'favorites' && entries !== null
+        ? entries.filter((entry) => entry.favorite === true)
+        : entries,
+    [entries, filter],
+  );
 
   const addBook = (): void => {
     if (canPick) {
@@ -91,6 +129,28 @@ export function Library(props: LibraryProps) {
         </span>
         <div className="library-actions">
           {busy && <span className="library-busy">Working…</span>}
+          <div className="view-toggle" role="group" aria-label="Library filter">
+            <button
+              type="button"
+              className="icon-button"
+              aria-pressed={filter === 'all'}
+              onClick={() => {
+                setFilter('all');
+              }}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-pressed={filter === 'favorites'}
+              onClick={() => {
+                setFilter('favorites');
+              }}
+            >
+              ★ Favorites
+            </button>
+          </div>
           <div className="view-toggle" role="group" aria-label="Library layout">
             <button
               type="button"
@@ -116,15 +176,6 @@ export function Library(props: LibraryProps) {
           <button type="button" className="primary-button" onClick={addBook}>
             Add book
           </button>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => {
-              inputRef.current?.click();
-            }}
-          >
-            Add from file
-          </button>
         </div>
       </header>
 
@@ -142,12 +193,16 @@ export function Library(props: LibraryProps) {
             </p>
           )}
         </div>
+      ) : visibleEntries !== null && visibleEntries.length === 0 ? (
+        <div className="library-empty">
+          <p>No favorites yet. Open All and tap the star on a book to add it here.</p>
+        </div>
       ) : (
         <ul
           className={view === 'grid' ? 'library-list library-grid' : 'library-list'}
           data-view={view}
         >
-          {entries.map((entry) => (
+          {visibleEntries?.map((entry) => (
             <li key={entry.id} className="library-item">
               <div className="library-item-main">
                 <span className={`format-badge format-${entry.format}`}>
@@ -166,6 +221,23 @@ export function Library(props: LibraryProps) {
                 </div>
               </div>
               <div className="library-item-actions">
+                <button
+                  type="button"
+                  className="icon-button favorite-button"
+                  aria-pressed={entry.favorite === true}
+                  aria-label={
+                    entry.favorite === true
+                      ? `Remove ${entry.name} from favorites`
+                      : `Add ${entry.name} to favorites`
+                  }
+                  title={entry.favorite === true ? 'Remove from favorites' : 'Add to favorites'}
+                  disabled={busy}
+                  onClick={() => {
+                    onToggleFavorite(entry);
+                  }}
+                >
+                  {entry.favorite === true ? '★' : '☆'}
+                </button>
                 <button
                   type="button"
                   className="icon-button"

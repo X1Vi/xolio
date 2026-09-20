@@ -480,6 +480,18 @@ button:disabled {
   font-weight: 600;
 }
 
+.favorite-button {
+  min-width: 2.1rem;
+  padding-inline: 0.35rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.favorite-button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: #d99a00;
+}
+
 .library-item {
   display: flex;
   align-items: center;

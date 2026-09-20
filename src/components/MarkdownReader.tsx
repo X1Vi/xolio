@@ -1,9 +1,27 @@
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Ref,
+} from 'react';
 import { useSearchShortcut } from '../hooks/useSearchShortcut';
 import { contextAroundRange, findAnchoredRange } from '../lib/anchors';
 import type { MarkdownBook } from '../lib/books';
 import { applyHighlights, clearHighlights } from '../lib/highlight';
 import type { Highlight, JumpRequest, ReaderHandle, ReaderLocation, SelectionInfo } from '../lib/marks';
+import { warmMarkdown } from '../lib/markdownRenderer';
+import {
+  computeMarkdownWindow,
+  ESTIMATED_PAGE_HEIGHT,
+  MAX_WINDOW_PAGES,
+  PAGE_OVERSCAN,
+  pageOffset,
+  paginateMarkdown,
+} from '../lib/pagination';
 import { findTextRanges } from '../lib/textSearch';
 import { MarkdownText } from './MarkdownText';
 import { SearchBar, type SearchStatus } from './SearchBar';
@@ -36,10 +54,181 @@ export function MarkdownReader(props: MarkdownReaderProps) {
   const [status, setStatus] = useState<SearchStatus>('idle');
   const [current, setCurrent] = useState(-1);
   const [total, setTotal] = useState(0);
+  const [range, setRange] = useState({ start: 0, end: MAX_WINDOW_PAGES - 1 });
+  const [currentPage, setCurrentPage] = useState(0);
+  const [heights, setHeights] = useState<readonly (number | null)[]>([]);
+  const [trackedText, setTrackedText] = useState(book.text);
+  const [trackedJump, setTrackedJump] = useState(0);
 
-  const content = useMemo(() => <MarkdownText text={book.text} />, [book.text]);
+  const pages = useMemo(() => paginateMarkdown(book.text), [book.text]);
+  const pageCount = pages.length;
+  const virtual = pageCount > MAX_WINDOW_PAGES;
+
+  if (trackedText !== book.text) {
+    setTrackedText(book.text);
+    setRange({ start: 0, end: MAX_WINDOW_PAGES - 1 });
+    setCurrentPage(0);
+  }
+
+  if (heights.length !== pageCount) {
+    setHeights(new Array<number | null>(pageCount).fill(null));
+  }
+
+  const effectiveHeights = useMemo(() => {
+    const resolved = new Array<number>(pageCount);
+    let measuredTotal = 0;
+    let measuredCount = 0;
+    for (let index = 0; index < pageCount; index += 1) {
+      const height = heights[index];
+      if (typeof height === 'number') {
+        resolved[index] = height;
+        measuredTotal += height;
+        measuredCount += 1;
+      }
+    }
+    const estimate = measuredCount > 0 ? measuredTotal / measuredCount : ESTIMATED_PAGE_HEIGHT;
+    for (let index = 0; index < pageCount; index += 1) {
+      resolved[index] ??= estimate;
+    }
+    return resolved;
+  }, [heights, pageCount]);
+
+  if (
+    jumpRequest !== null &&
+    jumpRequest.location.kind === 'markdown' &&
+    jumpRequest.nonce !== trackedJump
+  ) {
+    setTrackedJump(jumpRequest.nonce);
+    if (virtual) {
+      const index = Math.max(0, Math.min(pageCount - 1, jumpRequest.location.page - 1));
+      setCurrentPage(index);
+      setRange({
+        start: Math.max(0, index - PAGE_OVERSCAN),
+        end: Math.min(pageCount - 1, index + PAGE_OVERSCAN),
+      });
+    }
+  }
+
+  const windowStart = virtual ? range.start : 0;
+  const windowEnd = virtual ? Math.min(range.end, pageCount - 1) : pageCount - 1;
+
+  const pageIndexes = useMemo(() => {
+    const result: number[] = [];
+    for (let index = windowStart; index <= windowEnd; index += 1) {
+      result.push(index);
+    }
+    return result;
+  }, [windowStart, windowEnd]);
+
+  const paddingTop = virtual ? pageOffset(effectiveHeights, windowStart) : 0;
+  const paddingBottom = virtual
+    ? Math.max(0, pageOffset(effectiveHeights, pageCount) - pageOffset(effectiveHeights, windowEnd + 1))
+    : 0;
+
+  const effectiveHeightsRef = useRef<number[]>(effectiveHeights);
+  useLayoutEffect(() => {
+    effectiveHeightsRef.current = effectiveHeights;
+  }, [effectiveHeights]);
+
+  const handleScroll = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (viewport === null || !virtual) {
+      return;
+    }
+    const next = computeMarkdownWindow(effectiveHeights, viewport.scrollTop, viewport.clientHeight);
+    setRange((current) =>
+      current.start === next.start && current.end === next.end
+        ? current
+        : { start: next.start, end: next.end },
+    );
+    setCurrentPage((page) => (page === next.firstVisible ? page : next.firstVisible));
+  }, [virtual, effectiveHeights]);
+
+  useEffect(() => {
+    if (!virtual) {
+      return;
+    }
+    const container = contentRef.current;
+    if (container === null || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      setHeights((current) => {
+        let changed = false;
+        const next = current.slice();
+        for (const entry of entries) {
+          const element = entry.target;
+          if (!(element instanceof HTMLElement)) {
+            continue;
+          }
+          const index = Number(element.dataset['page']);
+          if (!Number.isFinite(index)) {
+            continue;
+          }
+          const height = entry.contentRect.height;
+          if (height <= 0) {
+            continue;
+          }
+          const previous = next[index];
+          if (previous === null || previous === undefined || Math.abs(previous - height) > 1) {
+            next[index] = height;
+            changed = true;
+          }
+        }
+        return changed ? next : current;
+      });
+    });
+    for (const element of container.querySelectorAll<HTMLElement>('[data-page]')) {
+      observer.observe(element);
+    }
+    return () => {
+      observer.disconnect();
+    };
+  }, [virtual, windowStart, windowEnd]);
+
+  useEffect(() => {
+    if (!virtual) {
+      return;
+    }
+    const targets: number[] = [];
+    if (windowEnd + 1 < pageCount) {
+      targets.push(windowEnd + 1);
+    }
+    if (windowStart - 1 >= 0) {
+      targets.push(windowStart - 1);
+    }
+    if (targets.length === 0) {
+      return;
+    }
+    const warm = (): void => {
+      for (const index of targets) {
+        const text = pages[index];
+        if (text !== undefined) {
+          warmMarkdown(text);
+        }
+      }
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const handle = window.requestIdleCallback(warm, { timeout: 1500 });
+      return () => {
+        window.cancelIdleCallback(handle);
+      };
+    }
+    const timeout = window.setTimeout(warm, 250);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [virtual, windowStart, windowEnd, pageCount, pages]);
 
   const getLocation = useCallback((): ReaderLocation | null => {
+    if (virtual) {
+      const page = currentPage + 1;
+      return {
+        kind: 'markdown',
+        page,
+        label: `Page ${String(page)} / ${String(pageCount)}`,
+      };
+    }
     const viewport = viewportRef.current;
     if (viewport === null) {
       return null;
@@ -53,7 +242,7 @@ export function MarkdownReader(props: MarkdownReaderProps) {
       label: `Reading position · ${String(percent)}%`,
       scrollRatio,
     };
-  }, []);
+  }, [virtual, currentPage, pageCount]);
 
   useImperativeHandle(ref, () => ({ getLocation }), [getLocation]);
 
@@ -85,6 +274,16 @@ export function MarkdownReader(props: MarkdownReaderProps) {
     };
   }, [reportScrollPosition]);
 
+  useLayoutEffect(() => {
+    if (!virtual) {
+      return;
+    }
+    const viewport = viewportRef.current;
+    if (viewport !== null) {
+      viewport.scrollTop = 0;
+    }
+  }, [virtual, book.text]);
+
   useEffect(() => {
     const contentElement = contentRef.current;
     if (contentElement === null) {
@@ -104,7 +303,7 @@ export function MarkdownReader(props: MarkdownReaderProps) {
     return () => {
       clearHighlights(USER_HIGHLIGHT);
     };
-  }, [highlights, book.text]);
+  }, [highlights, book.text, windowStart, windowEnd]);
 
   useEffect(() => {
     const handler = (): void => {
@@ -244,13 +443,21 @@ export function MarkdownReader(props: MarkdownReaderProps) {
     };
   }, [searchOpen, closeSearch]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (jumpRequest?.location.kind !== 'markdown') {
       return;
     }
-    const contentElement = contentRef.current;
     const viewport = viewportRef.current;
-    if (contentElement === null || viewport === null) {
+    if (viewport === null) {
+      return;
+    }
+    if (virtual) {
+      const index = Math.max(0, Math.min(pageCount - 1, jumpRequest.location.page - 1));
+      viewport.scrollTop = pageOffset(effectiveHeightsRef.current, index);
+      return;
+    }
+    const contentElement = contentRef.current;
+    if (contentElement === null) {
       return;
     }
     if (jumpRequest.quote !== undefined) {
@@ -261,7 +468,7 @@ export function MarkdownReader(props: MarkdownReaderProps) {
     const ratio = jumpRequest.location.scrollRatio ?? 0;
     const maxTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
     viewport.scrollTop = ratio * maxTop;
-  }, [jumpRequest]);
+  }, [jumpRequest, virtual, pageCount]);
 
   useEffect(
     () => () => {
@@ -276,7 +483,9 @@ export function MarkdownReader(props: MarkdownReaderProps) {
     <div className="reader-body">
       <div className="reader-toolbar">
         <div className="toolbar-group">
-          <span className="toolbar-label">Markdown</span>
+          <span className="toolbar-label">
+            {virtual ? `Page ${String(currentPage + 1)} / ${String(pageCount)}` : 'Markdown'}
+          </span>
         </div>
         <div className="toolbar-group toolbar-end">
           <button type="button" className="icon-button" onClick={openSearch}>
@@ -285,9 +494,15 @@ export function MarkdownReader(props: MarkdownReaderProps) {
         </div>
       </div>
 
-      <div className="md-viewport" ref={viewportRef}>
+      <div className="md-viewport" ref={viewportRef} onScroll={handleScroll}>
         <article className="md-content" ref={contentRef}>
-          {content}
+          {virtual && <div className="md-spacer" style={{ height: paddingTop }} aria-hidden />}
+          {pageIndexes.map((index) => (
+            <div key={index} className="md-page" data-page={index}>
+              <MarkdownText text={pages[index] ?? ''} cache />
+            </div>
+          ))}
+          {virtual && <div className="md-spacer" style={{ height: paddingBottom }} aria-hidden />}
         </article>
       </div>
 

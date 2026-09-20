@@ -11,7 +11,7 @@ Xolio has no application server or account system. Books are opened locally. **W
 - Linked files where the browser supports file handles; stored copies otherwise.
 - In-book search with `Ctrl+F` / `Cmd+F` and next/previous matches.
 - Highlights and bookmarks stored separately for each library entry.
-- Page navigation, PDF zoom, EPUB contents, and paginated Markdown.
+- Page navigation, PDF zoom, EPUB contents, and virtualized Markdown that renders large files as you scroll.
 - Light and dark reader themes.
 - Optional AI actions: Simplify, Explain, Summarize, Key points, Stress test, and custom questions.
 - Streaming AI responses with Markdown, mathematical notation, and chemical equations.
@@ -29,14 +29,14 @@ Open the local URL printed by Vite. No `.env` file, account, database server, or
 
 ## Reading
 
-1. Select **Add book**, **Add from file**, or drop a supported file into the library.
-2. Use the reader toolbar or arrow keys to turn pages. PDFs also offer zoom and fit-to-width controls.
+1. Select **Add book** or drop a supported file into the library.
+2. Use the reader toolbar or arrow keys to turn pages. PDFs also offer zoom and fit-to-width controls. Large Markdown files scroll continuously, loading pages as you reach them.
 3. Use **Search** or `Ctrl+F` / `Cmd+F`. `Enter` and `Shift+Enter` move through results; `Escape` closes search.
 4. Select text and choose **Highlight** to save a passage or **Ask AI** to open the assistant.
 5. Use **Bookmark** to save the current location and **Marks** to revisit or manage saved marks.
 6. Return to the library to reopen or remove a book. Removing a library entry does not delete the original file on disk.
 
-Chromium browsers with the File System Access API can remember a link to a file. Other browsers, or **Add from file**, store a copy in IndexedDB. Reopening a linked file may require permission again. Keep your original books backed up: browser storage can be cleared or evicted.
+Chromium browsers with the File System Access API can remember a link to a file. Other browsers store a copy in IndexedDB. Reopening a linked file may require permission again. Keep your original books backed up: browser storage can be cleared or evicted.
 
 ## Optional AI
 

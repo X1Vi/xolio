@@ -1,31 +1,21 @@
-import 'katex/dist/katex.min.css';
-import 'katex/dist/contrib/mhchem.mjs';
-import rehypeKatex from 'rehype-katex';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
+import { memo, useMemo } from 'react';
+import { normalizeMathDelimiters } from '../lib/mathDelimiters';
+import { renderMarkdown, renderMarkdownElement } from '../lib/markdownRenderer';
 
 interface MarkdownTextProps {
   readonly text: string;
   readonly className?: string | undefined;
+  readonly cache?: boolean | undefined;
 }
 
-export function MarkdownText({ text, className }: MarkdownTextProps) {
-  return (
-    <div className={className}>
-      <ReactMarkdown
-        skipHtml
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[[rehypeKatex, { trust: false, maxExpand: 1000 }]]}
-        components={{
-          img: ({ alt }) => <span className="ai-hint">[Image: {alt ?? 'external image blocked'}]</span>,
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
-          ),
-        }}
-      >
-        {text}
-      </ReactMarkdown>
-    </div>
+export const MarkdownText = memo(function MarkdownText({
+  text,
+  className,
+  cache = false,
+}: MarkdownTextProps) {
+  const element = useMemo(
+    () => (cache ? renderMarkdown(text) : renderMarkdownElement(normalizeMathDelimiters(text))),
+    [text, cache],
   );
-}
+  return <div className={className}>{element}</div>;
+});
