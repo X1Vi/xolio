@@ -16,8 +16,16 @@ vi.mock('./providers', async (importOriginal) => ({
 
 const config = { ...defaultConfig(), apiKey: 'test-credential' };
 
-function response(stream: AsyncIterable<Record<string, unknown>>): ReturnType<typeof streamText> {
-  return { stream } as unknown as ReturnType<typeof streamText>;
+function response(
+  stream: AsyncIterable<Record<string, unknown>>,
+  text = '',
+  finishReason = 'stop',
+): ReturnType<typeof streamText> {
+  return {
+    stream,
+    text: Promise.resolve(text),
+    finishReason: Promise.resolve(finishReason),
+  } as unknown as ReturnType<typeof streamText>;
 }
 
 beforeEach(() => {
@@ -37,6 +45,39 @@ describe('useAiQuery', () => {
     expect(result.current.status).toBe('done');
   });
 
+  it('disables DeepSeek thinking so the token budget produces visible answer text', async () => {
+    vi.mocked(streamText).mockReturnValue(response((async function* () {
+      await Promise.resolve();
+      yield { type: 'text-delta', text: 'Simplified' };
+    })()));
+    const deepseekConfig = { ...config, providerId: 'deepseek' as const };
+    const { result } = renderHook(() => useAiQuery(deepseekConfig));
+    await act(async () => { await result.current.ask('passage', 'simplify', ''); });
+    expect(vi.mocked(streamText).mock.calls[0]?.[0].providerOptions).toEqual({
+      deepseek: { thinking: { type: 'disabled' } },
+    });
+    expect(vi.mocked(streamText).mock.calls[0]?.[0].maxOutputTokens).toBe(32768);
+    expect(result.current.answer).toBe('Simplified');
+  });
+
+  it('uses the OpenRouter reasoning switch when the DeepSeek preset points at OpenRouter', async () => {
+    vi.mocked(streamText).mockReturnValue(response((async function* () {
+      await Promise.resolve();
+      yield { type: 'text-delta', text: 'Simplified' };
+    })()));
+    const deepseekConfig = {
+      ...config,
+      providerId: 'deepseek' as const,
+      baseUrl: 'https://openrouter.ai/api/v1',
+    };
+    const { result } = renderHook(() => useAiQuery(deepseekConfig));
+    await act(async () => { await result.current.ask('passage', 'simplify', ''); });
+    expect(vi.mocked(streamText).mock.calls[0]?.[0].providerOptions).toEqual({
+      deepseek: { reasoning: { enabled: false } },
+    });
+    expect(result.current.answer).toBe('Simplified');
+  });
+
   it('handles a stream error without presenting raw request details or marking success', async () => {
     vi.mocked(streamText).mockReturnValue(response((async function* () {
       await Promise.resolve();
@@ -49,6 +90,53 @@ describe('useAiQuery', () => {
     const options = vi.mocked(streamText).mock.calls[0]?.[0];
     expect(options?.onError).toBeTypeOf('function');
     expect(options?.maxRetries).toBe(0);
+  });
+
+  it('uses the completed text when a provider emits no text-delta chunks', async () => {
+    vi.mocked(streamText).mockReturnValue(response((async function* () {
+      await Promise.resolve();
+      yield { type: 'finish' };
+    })(), 'Fallback answer'));
+    const { result } = renderHook(() => useAiQuery(config));
+    await act(async () => { await result.current.ask('passage', 'simplify', ''); });
+    expect(result.current.answer).toBe('Fallback answer');
+    expect(result.current.status).toBe('done');
+  });
+
+  it('reports an empty provider response instead of finishing with a blank answer', async () => {
+    vi.mocked(streamText).mockReturnValue(response((async function* () {
+      await Promise.resolve();
+      yield { type: 'finish' };
+    })()));
+    const { result } = renderHook(() => useAiQuery(config));
+    await act(async () => { await result.current.ask('passage', 'simplify', ''); });
+    expect(result.current.answer).toBe('');
+    expect(result.current.status).toBe('error');
+    expect(result.current.error).toMatch(/empty response/i);
+  });
+
+  it('explains when the model exhausts its output budget without answering', async () => {
+    vi.mocked(streamText).mockReturnValue(response((async function* () {
+      await Promise.resolve();
+      yield { type: 'finish' };
+    })(), '', 'length'));
+    const { result } = renderHook(() => useAiQuery(config));
+    await act(async () => { await result.current.ask('long passage', 'summarize', ''); });
+    expect(result.current.status).toBe('error');
+    expect(result.current.error).toMatch(/output budget/i);
+  });
+
+  it('names reasoning mode when an endpoint ignores the reasoning-off request', async () => {
+    vi.mocked(streamText).mockReturnValue(response((async function* () {
+      await Promise.resolve();
+      yield { type: 'reasoning-delta', text: 'Thinking at length…' };
+      yield { type: 'finish' };
+    })(), '', 'length'));
+    const deepseekConfig = { ...config, providerId: 'deepseek' as const };
+    const { result } = renderHook(() => useAiQuery(deepseekConfig));
+    await act(async () => { await result.current.ask('passage', 'simplify', ''); });
+    expect(result.current.status).toBe('error');
+    expect(result.current.error).toMatch(/reasoning mode/i);
   });
 
   it('does not contact a provider with invalid settings', async () => {

@@ -34,7 +34,9 @@ Open the local URL printed by Vite. No `.env` file, account, database server, or
 3. Use **Search** or `Ctrl+F` / `Cmd+F`. `Enter` and `Shift+Enter` move through results; `Escape` closes search.
 4. Select text and choose **Highlight** to save a passage or **Ask AI** to open the assistant.
 5. Use **Bookmark** to save the current location and **Marks** to revisit or manage saved marks.
-6. Return to the library to reopen or remove a book. Removing a library entry does not delete the original file on disk.
+6. In **Marks**, use **Pin** on a bookmark to make it the place the book opens to. Without a pinned bookmark, a book reopens at your last reading position.
+7. Xolio reopens your most recent book automatically on launch. Use **Library** in the reader header to go back to the library.
+8. Return to the library to reopen or remove a book. Removing a library entry does not delete the original file on disk.
 
 Chromium browsers with the File System Access API can remember a link to a file. Other browsers store a copy in IndexedDB. Reopening a linked file may require permission again. Keep your original books backed up: browser storage can be cleared or evicted.
 
@@ -52,7 +54,7 @@ The application includes presets for OpenAI, Anthropic, Google Gemini, DeepSeek,
 
 Remote endpoints must use HTTPS. HTTP is accepted only for `localhost`, `127.0.0.1`, and `::1`. URLs containing credentials, query parameters, or fragments are rejected. Enter authentication in the API key field. Changing a provider or endpoint clears its key to prevent forwarding credentials to a different service.
 
-**AI requests can incur provider charges**, including Test connection. There is no shared or bundled API key. Responses are limited to 2,048 output tokens with a two-minute request timeout; connection tests have a 30-second timeout. The Stop button and closing the AI panel cancel the browser request. Provider-side processing or billing may still continue after cancellation.
+**AI requests can incur provider charges**, including Test connection. There is no shared or bundled API key. Responses are limited to 2,048 output tokens (32,768 for DeepSeek, whose V4 models enable reasoning by default and count reasoning tokens against the output budget) with a two-minute request timeout; connection tests have a 30-second timeout. The Stop button and closing the AI panel cancel the browser request. Provider-side processing or billing may still continue after cancellation.
 
 ### Local models and browser access
 

@@ -50,12 +50,23 @@ function openDatabase(): Promise<IDBDatabase> {
         migrateContents(transaction);
       }
     };
+    request.onblocked = () => {
+      reject(
+        new Error(
+          'Another tab is using an older version of the library. Close the other tab and reload.',
+        ),
+      );
+    };
     request.onsuccess = () => {
       resolve(request.result);
     };
     request.onerror = () => {
       reject(request.error ?? new Error('Could not open the library database.'));
     };
+  }).catch((cause: unknown) => {
+    // Allow a later call to retry instead of caching the failure for the whole session.
+    databasePromise = null;
+    throw cause;
   });
   return databasePromise;
 }

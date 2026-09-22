@@ -1,5 +1,7 @@
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, streamText } from 'ai';
 import type { AiConfig, ProviderId } from './types';
+
+type StreamTextProviderOptions = NonNullable<Parameters<typeof streamText>[0]['providerOptions']>;
 
 export interface ProviderPreset {
   readonly id: ProviderId;
@@ -135,6 +137,24 @@ export function resolveModelName(config: AiConfig): string {
 
 export function resolveBaseUrl(config: AiConfig): string {
   return config.baseUrl.trim() !== '' ? config.baseUrl.trim() : getPreset(config.providerId).defaultBaseUrl;
+}
+
+/**
+ * DeepSeek V4 models reason by default, and reasoning tokens count against the output budget,
+ * which can leave a response with no visible answer. Different endpoints spell the off-switch
+ * differently, so send the one the resolved endpoint understands.
+ */
+export function resolveReasoningOffOptions(config: AiConfig): StreamTextProviderOptions | undefined {
+  const model = resolveModelName(config).toLowerCase();
+  if (config.providerId !== 'deepseek' && !model.includes('deepseek')) {
+    return undefined;
+  }
+  const provider = getPreset(config.providerId).id;
+  const baseUrl = resolveBaseUrl(config).toLowerCase();
+  if (baseUrl.includes('openrouter.ai')) {
+    return { [provider]: { reasoning: { enabled: false } } };
+  }
+  return { [provider]: { thinking: { type: 'disabled' } } };
 }
 
 export async function createLanguageModel(config: AiConfig): Promise<LanguageModel> {

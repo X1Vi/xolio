@@ -1,7 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAiQuery } from '../ai/useAiQuery';
 import type { SelectionInfo } from '../lib/marks';
 import { AiPanel } from './AiPanel';
+
+vi.mock('../ai/useAiQuery', () => ({ useAiQuery: vi.fn() }));
+
+const ask = vi.fn(() => Promise.resolve());
 
 const selection: SelectionInfo = {
   text: 'Some selected text',
@@ -12,6 +17,15 @@ const selection: SelectionInfo = {
 
 beforeEach(() => {
   window.localStorage.clear();
+  ask.mockClear();
+  vi.mocked(useAiQuery).mockReturnValue({
+    answer: '',
+    status: 'idle',
+    error: null,
+    ask,
+    stop: vi.fn(),
+    clear: vi.fn(),
+  });
 });
 
 describe('AiPanel', () => {
@@ -75,6 +89,56 @@ describe('AiPanel', () => {
       target: { value: 'Why?' },
     });
     expect(ask).toBeEnabled();
+  });
+
+  it('routes a preset action through the working custom-question path', () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+    window.localStorage.setItem('reader-ai-config', JSON.stringify({
+      providerId: 'openai',
+      model: '',
+      apiKey: 'test-credential',
+      baseUrl: '',
+      remember: true,
+    }));
+    render(<AiPanel selection={selection} onClose={() => undefined} />);
+    fireEvent.change(screen.getByLabelText('Custom question (optional)'), {
+      target: { value: 'Why?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Simplify' }));
+    expect(ask).toHaveBeenCalledWith(
+      selection.text,
+      expect.stringContaining('Rewrite the passage'),
+      'Why?',
+    );
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
+    scrollIntoView.mockRestore();
+  });
+
+  it('lets a preset action replace a request whose stream is still open', () => {
+    window.localStorage.setItem('reader-ai-config', JSON.stringify({
+      providerId: 'deepseek',
+      model: '',
+      apiKey: 'test-credential',
+      baseUrl: '',
+      remember: true,
+    }));
+    vi.mocked(useAiQuery).mockReturnValue({
+      answer: 'Previous answer',
+      status: 'streaming',
+      error: null,
+      ask,
+      stop: vi.fn(),
+      clear: vi.fn(),
+    });
+    render(<AiPanel selection={selection} onClose={() => undefined} />);
+    const simplify = screen.getByRole('button', { name: 'Simplify' });
+    expect(simplify).toBeEnabled();
+    fireEvent.click(simplify);
+    expect(ask).toHaveBeenCalledWith(
+      selection.text,
+      expect.stringContaining('Rewrite the passage'),
+      '',
+    );
   });
 
   it('lets the model be chosen from a list', () => {

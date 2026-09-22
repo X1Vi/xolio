@@ -6,6 +6,13 @@ import { loadBook, type Book } from './lib/books';
 import { deleteLibraryEntry, getAllLibraryEntries, putLibraryEntry } from './lib/db';
 import { canPickFiles, pickBookHandle, type LibraryEntry } from './lib/library';
 import { createCopyEntry, createHandleEntry, openEntry, saveNewEntry, type NewLibraryEntry } from './lib/libraryOps';
+import { removeMarks } from './lib/marks';
+import {
+  clearLastBookId,
+  clearReadingPosition,
+  loadLastBookId,
+  saveLastBookId,
+} from './lib/positions';
 
 interface ActiveBook {
   readonly entryId: string;
@@ -31,13 +38,47 @@ export function App() {
     }
   }, []);
 
+  const openBook = useCallback((entryId: string, book: Book) => {
+    setActive({ entryId, book });
+    setError(null);
+    saveLastBookId(entryId);
+  }, []);
+
+  const openFromLibrary = useCallback(
+    async (entry: LibraryEntry) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const book = await openEntry(entry);
+        await putLibraryEntry({ ...entry, lastOpenedAt: Date.now() });
+        await refresh();
+        openBook(entry.id, book);
+      } catch (cause) {
+        setError(describeError(cause));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [openBook, refresh],
+  );
+
   useEffect(() => {
     let cancelled = false;
     getAllLibraryEntries()
       .then((loaded) => {
-        if (!cancelled) {
-          setEntries(loaded);
+        if (cancelled) {
+          return;
         }
+        setEntries(loaded);
+        const lastBookId = loadLastBookId();
+        if (lastBookId === null) {
+          return;
+        }
+        const lastEntry = loaded.find((entry) => entry.id === lastBookId);
+        if (lastEntry === undefined) {
+          return;
+        }
+        void openFromLibrary(lastEntry);
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
@@ -47,12 +88,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  const openBook = useCallback((entryId: string, book: Book) => {
-    setActive({ entryId, book });
-    setError(null);
-  }, []);
+  }, [openFromLibrary]);
 
   const addFromFile = useCallback(
     async (file: File) => {
@@ -99,24 +135,6 @@ export function App() {
     }
   }, [openBook, refresh]);
 
-  const openFromLibrary = useCallback(
-    async (entry: LibraryEntry) => {
-      setBusy(true);
-      setError(null);
-      try {
-        const book = await openEntry(entry);
-        await putLibraryEntry({ ...entry, lastOpenedAt: Date.now() });
-        await refresh();
-        openBook(entry.id, book);
-      } catch (cause) {
-        setError(describeError(cause));
-      } finally {
-        setBusy(false);
-      }
-    },
-    [openBook, refresh],
-  );
-
   const removeFromLibrary = useCallback(
     (entry: LibraryEntry) => {
       if (!window.confirm(`Remove "${entry.name}" from the library?`)) {
@@ -125,6 +143,11 @@ export function App() {
       void (async () => {
         try {
           await deleteLibraryEntry(entry.id);
+          removeMarks(entry.id);
+          clearReadingPosition(entry.id);
+          if (loadLastBookId() === entry.id) {
+            clearLastBookId();
+          }
           await refresh();
         } catch (cause) {
           setError(describeError(cause));
@@ -137,12 +160,15 @@ export function App() {
   const toggleFavorite = useCallback(
     (entry: LibraryEntry) => {
       void (async () => {
+        setBusy(true);
         setError(null);
         try {
           await putLibraryEntry({ ...entry, favorite: !entry.favorite });
           await refresh();
         } catch (cause) {
           setError(describeError(cause));
+        } finally {
+          setBusy(false);
         }
       })();
     },

@@ -33,6 +33,7 @@ export interface EpubLocation {
 
 export interface EpubRendition {
   display(target?: string | number): Promise<void>;
+  resize(width?: number, height?: number): void;
   next(): Promise<void>;
   prev(): Promise<void>;
   destroy(): void;

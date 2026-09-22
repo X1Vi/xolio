@@ -101,6 +101,9 @@ export function EpubReader(props: EpubReaderProps) {
   const currentHrefRef = useRef('');
   const userAnnotationCfisRef = useRef<readonly string[]>([]);
   const lastLocationRef = useRef<ReaderLocation | null>(null);
+  const initialJumpRef = useRef(jumpRequest);
+  const handledJumpRef = useRef<number | null>(jumpRequest?.nonce ?? null);
+  const closeSearchRef = useRef<() => void>(() => undefined);
 
   const getLocation = useCallback((): ReaderLocation | null => lastLocationRef.current, []);
 
@@ -144,6 +147,13 @@ export function EpubReader(props: EpubReaderProps) {
     bookRef.current = epubBook;
     renditionRef.current = rendition;
     rendition.themes.default(themeStyles(themeRef.current));
+    const resizeObserver = new ResizeObserver((entries) => {
+      const size = entries[0]?.contentRect;
+      if (size !== undefined && size.width > 0 && size.height > 0) {
+        rendition.resize(Math.floor(size.width), Math.floor(size.height));
+      }
+    });
+    resizeObserver.observe(host);
 
     rendition.hooks.content.register((contents: EpubContents) => {
       contents.document.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -158,7 +168,7 @@ export function EpubReader(props: EpubReaderProps) {
           event.preventDefault();
           void rendition.next();
         } else if (event.key === 'Escape') {
-          setSearchOpen(false);
+          closeSearchRef.current();
         }
       });
 
@@ -218,7 +228,11 @@ export function EpubReader(props: EpubReaderProps) {
       });
     });
 
-    void rendition.display();
+    const initialTarget =
+      initialJumpRef.current?.location.kind === 'epub'
+        ? initialJumpRef.current.location.cfi
+        : undefined;
+    void rendition.display(initialTarget).catch(() => undefined);
     void epubBook.loaded.navigation
       .then((navigation) => {
         if (!disposed) {
@@ -229,6 +243,7 @@ export function EpubReader(props: EpubReaderProps) {
 
     return () => {
       disposed = true;
+      resizeObserver.disconnect();
       searchTokenRef.current += 1;
       hitsRef.current = [];
       activeIndexRef.current = -1;
@@ -274,7 +289,11 @@ export function EpubReader(props: EpubReaderProps) {
     if (jumpRequest?.location.kind !== 'epub') {
       return;
     }
-    void renditionRef.current?.display(jumpRequest.location.cfi);
+    if (handledJumpRef.current === jumpRequest.nonce) {
+      return;
+    }
+    handledJumpRef.current = jumpRequest.nonce;
+    void renditionRef.current?.display(jumpRequest.location.cfi).catch(() => undefined);
   }, [jumpRequest]);
 
   const showHit = useCallback(async (target: number) => {
@@ -394,6 +413,10 @@ export function EpubReader(props: EpubReaderProps) {
     setCurrent(-1);
     setTotal(0);
   }, []);
+
+  useEffect(() => {
+    closeSearchRef.current = closeSearch;
+  }, [closeSearch]);
 
   useEffect(() => {
     if (!searchOpen) {

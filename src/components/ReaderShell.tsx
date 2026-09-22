@@ -3,7 +3,14 @@ import type { Theme } from '../hooks/useTheme';
 import type { Book } from '../lib/books';
 import { APP_NAME } from '../version';
 import { ErrorBoundary } from './ErrorBoundary';
-import { useMarks, type JumpRequest, type ReaderHandle, type ReaderLocation, type SelectionInfo } from '../lib/marks';
+import {
+  useMarks,
+  type JumpRequest,
+  type ReaderHandle,
+  type ReaderLocation,
+  type SelectionInfo,
+} from '../lib/marks';
+import { resolveInitialJump, saveLastBookId, saveReadingPosition } from '../lib/positions';
 import type { MarksJumpTarget } from './MarksPanel';
 
 const PdfReader = lazy(() =>
@@ -34,13 +41,19 @@ export function ReaderShell(props: ReaderShellProps) {
   const { entryId, book, theme, error, onToggleTheme, onClose, onOpenFile } = props;
   const inputRef = useRef<HTMLInputElement>(null);
   const readerRef = useRef<ReaderHandle | null>(null);
+  const { marks, addBookmark, addHighlight, removeBookmark, renameBookmark, togglePinBookmark, removeHighlight } =
+    useMarks(entryId);
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [location, setLocation] = useState<ReaderLocation | null>(null);
-  const [jumpRequest, setJumpRequest] = useState<JumpRequest | null>(null);
+  const [jumpRequest, setJumpRequest] = useState<JumpRequest | null>(() =>
+    resolveInitialJump(entryId, marks),
+  );
   const [aiOpen, setAiOpen] = useState(false);
   const [marksOpen, setMarksOpen] = useState(false);
-  const { marks, addBookmark, addHighlight, removeBookmark, renameBookmark, removeHighlight } =
-    useMarks(entryId);
+
+  useEffect(() => {
+    saveLastBookId(entryId);
+  }, [entryId]);
 
   useEffect(() => {
     document.title = `${book.name} · ${APP_NAME}`;
@@ -53,9 +66,13 @@ export function ReaderShell(props: ReaderShellProps) {
     setSelection(next);
   }, []);
 
-  const handleLocation = useCallback((next: ReaderLocation) => {
-    setLocation(next);
-  }, []);
+  const handleLocation = useCallback(
+    (next: ReaderLocation) => {
+      setLocation(next);
+      saveReadingPosition(entryId, next);
+    },
+    [entryId],
+  );
 
   const jumpTo = useCallback((target: MarksJumpTarget) => {
     setJumpRequest((current) => ({
@@ -159,6 +176,7 @@ export function ReaderShell(props: ReaderShellProps) {
               onJump={jumpTo}
               onRemoveBookmark={removeBookmark}
               onRenameBookmark={renameBookmark}
+              onTogglePinBookmark={togglePinBookmark}
               onRemoveHighlight={removeHighlight}
               onClose={() => {
                 setMarksOpen(false);
@@ -203,7 +221,12 @@ export function ReaderShell(props: ReaderShellProps) {
         </Suspense>
         {aiOpen && selection !== null && (
           <Suspense fallback={null}>
-            <AiPanel key={selection.text} selection={selection} onClose={() => { setAiOpen(false); }} />
+            <AiPanel
+              selection={selection}
+              onClose={() => {
+                setAiOpen(false);
+              }}
+            />
           </Suspense>
         )}
       </div>

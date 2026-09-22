@@ -1,5 +1,5 @@
 import { generateText } from 'ai';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { describeAiError } from '../ai/errors';
 import {
   CUSTOM_QUESTION_INSTRUCTION,
@@ -29,7 +29,14 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   const [testMessage, setTestMessage] = useState<string | null>(null);
+  const answerRef = useRef<HTMLElement>(null);
   const { answer, status, error, ask, stop } = useAiQuery(config);
+  const [trackedSelection, setTrackedSelection] = useState(selection.text);
+  if (trackedSelection !== selection.text) {
+    setTrackedSelection(selection.text);
+    setQuestion('');
+    setLastAction(null);
+  }
 
   const preset = getPreset(config.providerId);
   const validation = validateConfig(config);
@@ -44,15 +51,16 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
       : CUSTOM_MODEL_VALUE;
 
   const run = useCallback(
-    (instructions: string, label: string) => {
+    (instructions: string, label: string, customQuestion = '') => {
       if (validateConfig(config) !== null) {
         setSettingsOpen(true);
         return;
       }
       setLastAction(label);
-      void ask(selection.text, instructions, question);
+      answerRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      void ask(selection.text, instructions, customQuestion);
     },
-    [ask, config, question, selection.text],
+    [ask, config, selection.text],
   );
 
   const testConnection = useCallback(() => {
@@ -244,7 +252,10 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
         <section className="ai-selection">
           <span className="ai-section-label">Selected text</span>
           {hasSelection ? (
-            <blockquote className="ai-quote">{selection.text}</blockquote>
+            <>
+              <blockquote className="ai-quote">{selection.text}</blockquote>
+              <p className="ai-hint">{`${selection.text.length.toLocaleString()} characters selected.`}</p>
+            </>
           ) : (
             <p className="ai-hint">Select a passage in the book to ask about it.</p>
           )}
@@ -258,9 +269,9 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
                 key={action.id}
                 type="button"
                 className="icon-button"
-                disabled={!hasSelection || status === 'streaming'}
+                disabled={!hasSelection}
                 onClick={() => {
-                  run(action.instruction, action.label);
+                  run(action.instruction, action.label, question);
                 }}
               >
                 {action.label}
@@ -288,7 +299,7 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
                 type="button"
                 className="primary-button ai-ask"
                 onClick={() => {
-                  run(CUSTOM_QUESTION_INSTRUCTION, 'Custom question');
+                  run(CUSTOM_QUESTION_INSTRUCTION, 'Custom question', question);
                 }}
                 disabled={!hasSelection || question.trim() === ''}
               >
@@ -299,7 +310,7 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
           </div>
         </section>
 
-        <section className="ai-answer-section">
+        <section ref={answerRef} className="ai-answer-section" aria-live="polite">
           <span className="ai-section-label">
             {lastAction === null ? 'Answer' : `Answer · ${lastAction}`}
           </span>

@@ -109,7 +109,7 @@ export function useAiConfig(): AiConfigState {
       const providerChanged = patch.providerId !== undefined && patch.providerId !== current.providerId;
       const endpointChanged = patch.baseUrl !== undefined && patch.baseUrl !== current.baseUrl;
       if (providerChanged) {
-        return { ...current, ...patch, apiKey: '', baseUrl: '', model: '', remember: false };
+        return { ...current, apiKey: '', baseUrl: '', model: '', remember: false, ...patch };
       }
       return { ...current, ...patch, ...(endpointChanged ? { apiKey: '', remember: false } : {}) };
     });

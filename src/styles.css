@@ -308,6 +308,10 @@ button:disabled {
   margin-top: 0;
 }
 
+.md-page {
+  display: flow-root;
+}
+
 .md-content pre,
 .ai-answer pre {
   overflow: auto;
@@ -623,6 +627,20 @@ button:disabled {
   font-weight: 600;
 }
 
+.marks-pinned {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--accent, #2f6fed);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .marks-quote {
   display: -webkit-box;
   overflow: hidden;
@@ -670,7 +688,10 @@ button:disabled {
 /* Ask AI panel */
 
 .ai-panel {
+  position: relative;
+  z-index: 1;
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   width: 24rem;
   min-width: 20rem;

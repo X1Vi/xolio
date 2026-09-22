@@ -64,6 +64,7 @@ export function PdfReader(props: PdfReaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const highlightsRef = useRef<readonly Highlight[]>(highlights);
   const numPagesRef = useRef(0);
+  const pendingPageRef = useRef<number | null>(null);
 
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
@@ -144,6 +145,11 @@ export function PdfReader(props: PdfReaderProps) {
 
     const handlePagesInit = (): void => {
       viewer.currentScaleValue = 'page-width';
+      const pending = pendingPageRef.current;
+      if (pending !== null) {
+        viewer.currentPageNumber = pending;
+        pendingPageRef.current = null;
+      }
     };
     const handlePageChanging = (event: unknown): void => {
       if (typeof event === 'object' && event !== null) {
@@ -191,7 +197,7 @@ export function PdfReader(props: PdfReaderProps) {
     eventBus.on('scalechanging', handleScaleChanging);
     eventBus.on('updatefindmatchescount', handleMatchesCount);
     eventBus.on('updatefindcontrolstate', handleFindState);
-    eventBus.on('pagerendered', paintUserHighlights);
+    eventBus.on('textlayerrendered', paintUserHighlights);
 
     const loadingTask = pdfjs.getDocument({ data: book.data.slice(0), isEvalSupported: false });
     loadingTask.promise
@@ -217,7 +223,7 @@ export function PdfReader(props: PdfReaderProps) {
       eventBus.off('scalechanging', handleScaleChanging);
       eventBus.off('updatefindmatchescount', handleMatchesCount);
       eventBus.off('updatefindcontrolstate', handleFindState);
-      eventBus.off('pagerendered', paintUserHighlights);
+      eventBus.off('textlayerrendered', paintUserHighlights);
       viewer.cleanup();
       viewerRef.current = null;
       eventBusRef.current = null;
@@ -293,11 +299,17 @@ export function PdfReader(props: PdfReaderProps) {
     if (jumpRequest?.location.kind !== 'pdf') {
       return;
     }
+    const target = Math.min(
+      numPages > 0 ? numPages : Number.MAX_SAFE_INTEGER,
+      Math.max(1, jumpRequest.location.page),
+    );
+    pendingPageRef.current = target;
     const viewer = viewerRef.current;
-    if (viewer !== null) {
-      viewer.currentPageNumber = jumpRequest.location.page;
+    if (viewer !== null && numPages > 0) {
+      viewer.currentPageNumber = target;
+      pendingPageRef.current = null;
     }
-  }, [jumpRequest]);
+  }, [jumpRequest, numPages]);
 
   const dispatchFind = useCallback(
     (type: FindEventType, findPrevious: boolean, searchQuery: string) => {

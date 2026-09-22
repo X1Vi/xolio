@@ -20,6 +20,7 @@ export interface Bookmark {
   readonly createdAt: number;
   readonly label: string;
   readonly location: ReaderLocation;
+  readonly pinned?: boolean;
 }
 
 export interface Highlight {
@@ -71,7 +72,34 @@ function isBookmark(value: unknown): value is Bookmark {
     return false;
   }
   const record = value as Record<string, unknown>;
-  return typeof record['id'] === 'string' && typeof record['location'] === 'object';
+  return (
+    typeof record['id'] === 'string' &&
+    typeof record['label'] === 'string' &&
+    isReaderLocation(record['location'])
+  );
+}
+
+export function isReaderLocation(value: unknown): value is ReaderLocation {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record['label'] !== 'string') {
+    return false;
+  }
+  switch (record['kind']) {
+    case 'pdf':
+      return typeof record['page'] === 'number';
+    case 'epub':
+      return typeof record['cfi'] === 'string' && typeof record['href'] === 'string';
+    case 'markdown':
+      return (
+        typeof record['page'] === 'number' &&
+        (record['scrollRatio'] === undefined || typeof record['scrollRatio'] === 'number')
+      );
+    default:
+      return false;
+  }
 }
 
 function isHighlight(value: unknown): value is Highlight {
@@ -79,7 +107,11 @@ function isHighlight(value: unknown): value is Highlight {
     return false;
   }
   const record = value as Record<string, unknown>;
-  return typeof record['id'] === 'string' && typeof record['quote'] === 'string';
+  return (
+    typeof record['id'] === 'string' &&
+    typeof record['quote'] === 'string' &&
+    isReaderLocation(record['location'])
+  );
 }
 
 export function loadMarks(bookId: string): MarksBundle {
@@ -120,6 +152,18 @@ export function saveMarks(bookId: string, marks: MarksBundle): void {
   }
 }
 
+export function removeMarks(bookId: string): void {
+  try {
+    window.localStorage.removeItem(storageKey(bookId));
+  } catch {
+    // storage can be unavailable; nothing else to do
+  }
+}
+
+export function getPinnedBookmark(marks: MarksBundle): Bookmark | undefined {
+  return marks.bookmarks.find((bookmark) => bookmark.pinned === true);
+}
+
 export function createBookmark(label: string, location: ReaderLocation): Bookmark {
   return { id: createId(), createdAt: Date.now(), label, location };
 }
@@ -141,6 +185,7 @@ export interface MarksState {
   readonly addHighlight: (selection: SelectionInfo) => void;
   readonly removeBookmark: (id: string) => void;
   readonly renameBookmark: (id: string, title: string) => void;
+  readonly togglePinBookmark: (id: string) => void;
   readonly removeHighlight: (id: string) => void;
 }
 
@@ -209,6 +254,30 @@ export function useMarks(bookId: string): MarksState {
     [bookId],
   );
 
+  const togglePinBookmark = useCallback(
+    (id: string) => {
+      setMarks((current) => {
+        const target = current.bookmarks.find((bookmark) => bookmark.id === id);
+        if (target === undefined) {
+          return current;
+        }
+        const pin = target.pinned !== true;
+        const next: MarksBundle = {
+          bookmarks: current.bookmarks.map((bookmark) => {
+            if (bookmark.id === id) {
+              return pin ? { ...bookmark, pinned: true } : { ...bookmark, pinned: false };
+            }
+            return bookmark.pinned === true ? { ...bookmark, pinned: false } : bookmark;
+          }),
+          highlights: current.highlights,
+        };
+        saveMarks(bookId, next);
+        return next;
+      });
+    },
+    [bookId],
+  );
+
   const removeHighlight = useCallback(
     (id: string) => {
       setMarks((current) => {
@@ -223,5 +292,5 @@ export function useMarks(bookId: string): MarksState {
     [bookId],
   );
 
-  return { marks, addBookmark, addHighlight, removeBookmark, renameBookmark, removeHighlight };
+  return { marks, addBookmark, addHighlight, removeBookmark, renameBookmark, togglePinBookmark, removeHighlight };
 }

@@ -47,6 +47,7 @@ export function MarkdownReader(props: MarkdownReaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const rangesRef = useRef<readonly Range[]>([]);
   const indexRef = useRef(-1);
+  const pendingPageRef = useRef<number | null>(null);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -453,6 +454,7 @@ export function MarkdownReader(props: MarkdownReaderProps) {
     }
     if (virtual) {
       const index = Math.max(0, Math.min(pageCount - 1, jumpRequest.location.page - 1));
+      pendingPageRef.current = index;
       viewport.scrollTop = pageOffset(effectiveHeightsRef.current, index);
       return;
     }
@@ -469,6 +471,30 @@ export function MarkdownReader(props: MarkdownReaderProps) {
     const maxTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
     viewport.scrollTop = ratio * maxTop;
   }, [jumpRequest, virtual, pageCount]);
+
+  useLayoutEffect(() => {
+    const pending = pendingPageRef.current;
+    if (!virtual || pending === null) {
+      return;
+    }
+    const viewport = viewportRef.current;
+    if (viewport === null) {
+      return;
+    }
+    viewport.scrollTop = pageOffset(effectiveHeights, pending);
+    const start = Math.max(0, pending - PAGE_OVERSCAN);
+    const end = Math.min(pageCount - 1, pending + PAGE_OVERSCAN);
+    let settled = true;
+    for (let index = start; index <= end; index += 1) {
+      if (heights[index] === null || heights[index] === undefined) {
+        settled = false;
+        break;
+      }
+    }
+    if (settled) {
+      pendingPageRef.current = null;
+    }
+  }, [effectiveHeights, heights, pageCount, virtual]);
 
   useEffect(
     () => () => {

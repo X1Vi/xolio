@@ -42,6 +42,27 @@ describe('marks storage', () => {
     window.localStorage.setItem('reader-marks:bad', 'not json');
     expect(loadMarks('bad').bookmarks).toHaveLength(0);
   });
+
+  it('drops entries whose location is missing or malformed', () => {
+    window.localStorage.setItem(
+      'reader-marks:broken',
+      JSON.stringify({
+        bookmarks: [
+          { id: 'a', createdAt: 1, label: 'No location' },
+          { id: 'b', createdAt: 1, label: 'Null location', location: null },
+          { id: 'c', createdAt: 1, label: 'Bad kind', location: { kind: 'scroll', label: 'x' } },
+          { id: 'd', createdAt: 1, label: 'Good', location: { kind: 'pdf', page: 2, label: 'Page 2' } },
+        ],
+        highlights: [
+          { id: 'e', quote: 'no location' },
+          { id: 'f', quote: 'good', location: { kind: 'pdf', page: 1, label: 'Page 1' } },
+        ],
+      }),
+    );
+    const loaded = loadMarks('broken');
+    expect(loaded.bookmarks.map((bookmark) => bookmark.id)).toEqual(['d']);
+    expect(loaded.highlights.map((highlight) => highlight.id)).toEqual(['f']);
+  });
 });
 
 describe('useMarks bookmarks', () => {
@@ -73,5 +94,35 @@ describe('useMarks bookmarks', () => {
       result.current.removeBookmark(newest.id);
     });
     expect(result.current.marks.bookmarks).toHaveLength(1);
+  });
+
+  it('pins one bookmark at a time and unpins it again', () => {
+    const { result } = renderHook(() => useMarks('book-3'));
+    act(() => {
+      result.current.addBookmark('First', { kind: 'pdf', page: 1, label: 'Page 1' });
+    });
+    act(() => {
+      result.current.addBookmark('Second', { kind: 'pdf', page: 9, label: 'Page 9' });
+    });
+    const [second, first] = result.current.marks.bookmarks;
+    if (first === undefined || second === undefined) {
+      throw new Error('expected two bookmarks');
+    }
+
+    act(() => {
+      result.current.togglePinBookmark(first.id);
+    });
+    expect(result.current.marks.bookmarks.find((bookmark) => bookmark.id === first.id)?.pinned).toBe(true);
+
+    act(() => {
+      result.current.togglePinBookmark(second.id);
+    });
+    expect(result.current.marks.bookmarks.find((bookmark) => bookmark.id === first.id)?.pinned).toBe(false);
+    expect(result.current.marks.bookmarks.find((bookmark) => bookmark.id === second.id)?.pinned).toBe(true);
+
+    act(() => {
+      result.current.togglePinBookmark(second.id);
+    });
+    expect(result.current.marks.bookmarks.find((bookmark) => bookmark.id === second.id)?.pinned).toBe(false);
   });
 });

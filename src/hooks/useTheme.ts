@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
@@ -18,9 +18,14 @@ function readInitialTheme(): Theme {
 
 export function useTheme(): { theme: Theme; toggleTheme: () => void } {
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
+  const persistedRef = useRef(theme);
 
   useEffect(() => {
     document.documentElement.dataset['theme'] = theme;
+    if (persistedRef.current === theme) {
+      return;
+    }
+    persistedRef.current = theme;
     try {
       window.localStorage.setItem(STORAGE_KEY, theme);
     } catch {

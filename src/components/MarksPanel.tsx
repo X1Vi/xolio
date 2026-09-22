@@ -11,6 +11,7 @@ interface MarksPanelProps {
   readonly onJump: (target: MarksJumpTarget) => void;
   readonly onRemoveBookmark: (id: string) => void;
   readonly onRenameBookmark: (id: string, title: string) => void;
+  readonly onTogglePinBookmark: (id: string) => void;
   readonly onRemoveHighlight: (id: string) => void;
   readonly onClose: () => void;
 }
@@ -19,10 +20,11 @@ interface BookmarkRowProps {
   readonly bookmark: Bookmark;
   readonly onJump: (target: MarksJumpTarget) => void;
   readonly onRename: (id: string, title: string) => void;
+  readonly onTogglePin: (id: string) => void;
   readonly onRemove: (id: string) => void;
 }
 
-function BookmarkRow({ bookmark, onJump, onRename, onRemove }: BookmarkRowProps) {
+function BookmarkRow({ bookmark, onJump, onRename, onTogglePin, onRemove }: BookmarkRowProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(bookmark.label);
 
@@ -68,10 +70,23 @@ function BookmarkRow({ bookmark, onJump, onRename, onRemove }: BookmarkRowProps)
               onJump({ location: bookmark.location });
             }}
           >
-            <span className="marks-label">{bookmark.label}</span>
+            <span className="marks-label">
+              {bookmark.pinned === true && <span className="marks-pinned">Pinned</span>}
+              {bookmark.label}
+            </span>
             <span className="marks-meta">{new Date(bookmark.createdAt).toLocaleString()}</span>
           </button>
           <div className="marks-item-actions">
+            <button
+              type="button"
+              className="icon-button"
+              aria-pressed={bookmark.pinned === true}
+              onClick={() => {
+                onTogglePin(bookmark.id);
+              }}
+            >
+              {bookmark.pinned === true ? 'Unpin' : 'Pin'}
+            </button>
             <button
               type="button"
               className="icon-button"
@@ -99,7 +114,7 @@ function BookmarkRow({ bookmark, onJump, onRename, onRemove }: BookmarkRowProps)
 }
 
 export function MarksPanel(props: MarksPanelProps) {
-  const { marks, onJump, onRemoveBookmark, onRenameBookmark, onRemoveHighlight, onClose } = props;
+  const { marks, onJump, onRemoveBookmark, onRenameBookmark, onTogglePinBookmark, onRemoveHighlight, onClose } = props;
 
   return (
     <aside className="marks-panel" aria-label="Bookmarks and highlights">
@@ -122,6 +137,7 @@ export function MarksPanel(props: MarksPanelProps) {
                   bookmark={bookmark}
                   onJump={onJump}
                   onRename={onRenameBookmark}
+                  onTogglePin={onTogglePinBookmark}
                   onRemove={onRemoveBookmark}
                 />
               ))}
