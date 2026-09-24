@@ -141,6 +141,32 @@ describe('AiPanel', () => {
     );
   });
 
+  it('includes nearby EPUB context only when simplifying', () => {
+    window.localStorage.setItem('reader-ai-config', JSON.stringify({
+      providerId: 'openai',
+      model: '',
+      apiKey: 'test-credential',
+      baseUrl: '',
+      remember: true,
+    }));
+    const epubSelection: SelectionInfo = {
+      ...selection,
+      aiContextBefore: 'Text from preceding pages.',
+      aiContextAfter: 'Text from following pages.',
+      location: { kind: 'epub', cfi: 'epubcfi(/6/2)', href: 'chapter.xhtml', label: 'Chapter' },
+    };
+    render(<AiPanel selection={epubSelection} onClose={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Simplify' }));
+    expect(ask).toHaveBeenCalledWith(
+      expect.stringContaining('Text from preceding pages.'),
+      expect.stringContaining('Rewrite only the marked passage'),
+      '',
+    );
+    const calls = ask.mock.calls as unknown as readonly [string, string, string][];
+    expect(calls[0]?.[0]).toContain('Text from following pages.');
+    expect(calls[0]?.[0]).toContain(selection.text);
+  });
+
   it('lets the model be chosen from a list', () => {
     render(<AiPanel selection={selection} onClose={() => undefined} />);
     fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'gpt-4o' } });

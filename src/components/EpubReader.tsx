@@ -33,6 +33,24 @@ const USER_HIGHLIGHT_STYLES: Record<string, string> = {
   'mix-blend-mode': 'multiply',
 };
 
+const AI_CONTEXT_CHARS = 3000;
+
+function aiContextAroundRange(document: Document, range: Range): {
+  readonly before: string;
+  readonly after: string;
+} {
+  const beforeRange = document.createRange();
+  beforeRange.selectNodeContents(document.body);
+  beforeRange.setEnd(range.startContainer, range.startOffset);
+  const afterRange = document.createRange();
+  afterRange.selectNodeContents(document.body);
+  afterRange.setStart(range.endContainer, range.endOffset);
+  return {
+    before: beforeRange.toString().slice(-AI_CONTEXT_CHARS).trim(),
+    after: afterRange.toString().slice(0, AI_CONTEXT_CHARS).trim(),
+  };
+}
+
 interface SearchHit {
   readonly cfi: string;
 }
@@ -211,14 +229,21 @@ export function EpubReader(props: EpubReaderProps) {
     });
 
     rendition.on('selected', (cfiRange: string, contents: EpubContents) => {
-      const selectedText = contents.window.getSelection()?.toString().trim() ?? '';
+      const browserSelection = contents.window.getSelection();
+      const selectedText = browserSelection?.toString().trim() ?? '';
       if (selectedText === '') {
         return;
       }
+      const context =
+        browserSelection !== null && browserSelection.rangeCount > 0
+          ? aiContextAroundRange(contents.document, browserSelection.getRangeAt(0))
+          : { before: '', after: '' };
       onSelectionChange({
         text: selectedText,
         prefix: '',
         suffix: '',
+        aiContextBefore: context.before,
+        aiContextAfter: context.after,
         location: {
           kind: 'epub',
           cfi: cfiRange,

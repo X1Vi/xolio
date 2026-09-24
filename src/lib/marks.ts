@@ -41,6 +41,8 @@ export interface SelectionInfo {
   readonly text: string;
   readonly prefix: string;
   readonly suffix: string;
+  readonly aiContextBefore?: string;
+  readonly aiContextAfter?: string;
   readonly location: ReaderLocation;
 }
 

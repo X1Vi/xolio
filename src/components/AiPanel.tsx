@@ -22,6 +22,22 @@ interface AiPanelProps {
   readonly onClose: () => void;
 }
 
+function simplifyPassage(selection: SelectionInfo): string {
+  const before = selection.aiContextBefore ?? '';
+  const after = selection.aiContextAfter ?? '';
+  if (selection.location.kind !== 'epub' || (before === '' && after === '')) {
+    return selection.text;
+  }
+  return [
+    'Context before (reference only):',
+    before,
+    'Passage to simplify:',
+    selection.text,
+    'Context after (reference only):',
+    after,
+  ].join('\n\n');
+}
+
 export function AiPanel({ selection, onClose }: AiPanelProps) {
   const { config, updateConfig, resetConfig } = useAiConfig();
   const [settingsOpen, setSettingsOpen] = useState(() => validateConfig(config) !== null);
@@ -51,14 +67,14 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
       : CUSTOM_MODEL_VALUE;
 
   const run = useCallback(
-    (instructions: string, label: string, customQuestion = '') => {
+    (instructions: string, label: string, customQuestion = '', passage = selection.text) => {
       if (validateConfig(config) !== null) {
         setSettingsOpen(true);
         return;
       }
       setLastAction(label);
       answerRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      void ask(selection.text, instructions, customQuestion);
+      void ask(passage, instructions, customQuestion);
     },
     [ask, config, selection.text],
   );
@@ -271,7 +287,14 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
                 className="icon-button"
                 disabled={!hasSelection}
                 onClick={() => {
-                  run(action.instruction, action.label, question);
+                  run(
+                    action.id === 'simplify'
+                      ? `${action.instruction} Rewrite only the marked passage; use the surrounding context only to preserve meaning.`
+                      : action.instruction,
+                    action.label,
+                    question,
+                    action.id === 'simplify' ? simplifyPassage(selection) : selection.text,
+                  );
                 }}
               >
                 {action.label}
