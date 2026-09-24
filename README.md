@@ -98,11 +98,13 @@ For Cloudflare Pages, import the repository and use:
 For Cloudflare Workers Static Assets, build and deploy from the repository root:
 
 ```bash
-npm run build
+npm run build:cloudflare
 npx wrangler deploy
 ```
 
-`wrangler.jsonc` points Cloudflare at `dist/` and enables SPA fallback. The generated `dist/_headers` supplies the production security and cache headers used by Cloudflare. No API keys belong in Cloudflare build variables because AI credentials are entered by each user in the browser.
+`npm run build:cloudflare` runs the complete release check and creates a clean **`cloudflare-upload/`** directory. That directory can be selected for a manual Cloudflare upload. Pass a project-local directory name to choose another destination, for example `bash scripts/build-cloudflare.sh release-upload`.
+
+`wrangler.jsonc` points Cloudflare at `dist/` for CLI deployments and enables SPA fallback. The generated `_headers` file supplies the production security and cache headers used by Cloudflare. No API keys belong in Cloudflare build variables because AI credentials are entered by each user in the browser.
 
 For hosting at a subpath, build with the matching base URL:
 

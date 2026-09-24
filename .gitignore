@@ -1,5 +1,6 @@
 node_modules
 dist
+cloudflare-upload
 *.local
 .DS_Store
 coverage
