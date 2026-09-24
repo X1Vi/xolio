@@ -1,12 +1,12 @@
-import { generateText } from 'ai';
 import { useCallback, useRef, useState } from 'react';
+import { testAiConnection } from '../ai/connection';
 import { describeAiError } from '../ai/errors';
 import {
   CUSTOM_QUESTION_INSTRUCTION,
   PROMPT_ACTIONS,
   type PromptAction,
 } from '../ai/prompt';
-import { PROVIDERS, createLanguageModel, getPreset, resolveModelName } from '../ai/providers';
+import { PROVIDERS, getPreset, resolveModelName } from '../ai/providers';
 import { useAiConfig, validateConfig } from '../ai/settings';
 import type { ProviderId } from '../ai/types';
 import { useAiQuery } from '../ai/useAiQuery';
@@ -90,14 +90,7 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
     setTestMessage(null);
     void (async () => {
       try {
-        const model = await createLanguageModel(config);
-        await generateText({
-          model,
-          prompt: 'Reply with the single word: OK',
-          maxOutputTokens: 8,
-          maxRetries: 0,
-          abortSignal: AbortSignal.timeout(30_000),
-        });
+        await testAiConnection(config);
         setTestStatus('ok');
         setTestMessage('Connected.');
       } catch (cause) {

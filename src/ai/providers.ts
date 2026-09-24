@@ -82,8 +82,8 @@ export const PROVIDERS: readonly ProviderPreset[] = [
   {
     id: 'groq',
     label: 'Groq',
-    defaultModel: 'llama-3.3-70b-versatile',
-    suggestedModels: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+    defaultModel: 'openai/gpt-oss-20b',
+    suggestedModels: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b'],
     requiresApiKey: true,
     requiresBaseUrl: false,
     baseUrlEditable: false,

@@ -50,7 +50,7 @@ Open **Ask AI → Settings**, then:
 4. Optionally select **Remember on this device**.
 5. Use **Test connection**, then select a passage and ask a question.
 
-The application includes presets for OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Groq, Ollama, and custom OpenAI-compatible endpoints. Suggested model names are conveniences; availability depends on your provider account. Use a custom model name when a preset is unavailable.
+The application includes presets for OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Groq, Ollama, and custom OpenAI-compatible endpoints. Suggested model names are conveniences; availability depends on your provider account. Use a custom model name when a preset is unavailable. Provider adapter tests cover every preset, and **Test connection** makes a small real request with the selected credentials before reporting success.
 
 Remote endpoints must use HTTPS. HTTP is accepted only for `localhost`, `127.0.0.1`, and `::1`. URLs containing credentials, query parameters, or fragments are rejected. Enter authentication in the API key field. Changing a provider or endpoint clears its key to prevent forwarding credentials to a different service.
 
@@ -78,7 +78,7 @@ Internal storage names retain the `reader-*` prefix, so the rename does not rese
 
 See [SECURITY.md](SECURITY.md) for credential handling and vulnerability reporting.
 
-## Production build and deployment
+## Production build and Cloudflare deployment
 
 ```bash
 npm ci
@@ -87,7 +87,22 @@ npm audit --audit-level=high
 npm run preview
 ```
 
-`npm run check` runs lint, tests, TypeScript checks, the production build, and a credential-pattern scan. Preview serves the built app locally for inspection. The production files are in **`dist/`**. Deploy that directory to an HTTPS static host; no Node.js process is required in production. Vite's development and preview servers are for local use.
+`npm run check` runs lint, tests, TypeScript checks, the production build, and a credential-pattern scan. Preview serves the built app locally for inspection. The production files are in **`dist/`**. Xolio is a browser-only static application: no Node.js process, desktop runtime, application server, or server-side secret is required in production.
+
+For Cloudflare Pages, import the repository and use:
+
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Production branch: `main`
+
+For Cloudflare Workers Static Assets, build and deploy from the repository root:
+
+```bash
+npm run build
+npx wrangler deploy
+```
+
+`wrangler.jsonc` points Cloudflare at `dist/` and enables SPA fallback. The generated `dist/_headers` supplies the production security and cache headers used by Cloudflare. No API keys belong in Cloudflare build variables because AI credentials are entered by each user in the browser.
 
 For hosting at a subpath, build with the matching base URL:
 
