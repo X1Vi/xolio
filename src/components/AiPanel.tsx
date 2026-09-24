@@ -10,6 +10,7 @@ import { PROVIDERS, getPreset, resolveModelName } from '../ai/providers';
 import { useAiConfig, validateConfig } from '../ai/settings';
 import type { ProviderId } from '../ai/types';
 import { useAiQuery } from '../ai/useAiQuery';
+import { MIN_VAULT_PASSPHRASE_LENGTH } from '../ai/vault';
 import type { SelectionInfo } from '../lib/marks';
 import { MarkdownText } from './MarkdownText';
 
@@ -39,12 +40,26 @@ function simplifyPassage(selection: SelectionInfo): string {
 }
 
 export function AiPanel({ selection, onClose }: AiPanelProps) {
-  const { config, updateConfig, resetConfig } = useAiConfig();
+  const {
+    config,
+    vaultStatus,
+    updateConfig,
+    resetConfig,
+    saveToVault,
+    unlockVault,
+    lockVault,
+    forgetVault,
+  } = useAiConfig();
   const [settingsOpen, setSettingsOpen] = useState(() => validateConfig(config) !== null);
   const [question, setQuestion] = useState('');
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   const [testMessage, setTestMessage] = useState<string | null>(null);
+  const [vaultMode, setVaultMode] = useState<'closed' | 'save' | 'unlock'>('closed');
+  const [vaultPassword, setVaultPassword] = useState('');
+  const [vaultConfirmation, setVaultConfirmation] = useState('');
+  const [vaultMessage, setVaultMessage] = useState<string | null>(null);
+  const [vaultBusy, setVaultBusy] = useState(false);
   const answerRef = useRef<HTMLElement>(null);
   const { answer, status, error, ask, stop } = useAiQuery(config);
   const [trackedSelection, setTrackedSelection] = useState(selection.text);
@@ -100,6 +115,32 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
     })();
   }, [config]);
 
+  const closeVaultForm = useCallback(() => {
+    setVaultMode('closed');
+    setVaultPassword('');
+    setVaultConfirmation('');
+    setVaultMessage(null);
+  }, []);
+
+  const submitVault = useCallback(() => {
+    if (vaultMode === 'save' && vaultPassword !== vaultConfirmation) {
+      setVaultMessage('The vault passwords do not match.');
+      return;
+    }
+    setVaultBusy(true);
+    setVaultMessage(null);
+    void (vaultMode === 'save' ? saveToVault(vaultPassword) : unlockVault(vaultPassword))
+      .then(() => {
+        closeVaultForm();
+      })
+      .catch((cause: unknown) => {
+        setVaultMessage(cause instanceof Error ? cause.message : 'Could not update the encrypted vault.');
+      })
+      .finally(() => {
+        setVaultBusy(false);
+      });
+  }, [closeVaultForm, saveToVault, unlockVault, vaultConfirmation, vaultMode, vaultPassword]);
+
   return (
     <aside className="ai-panel" aria-label="Ask AI">
       <div className="ai-panel-header">
@@ -133,6 +174,7 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
                 value={config.providerId}
                 onChange={(event) => {
                   updateConfig({ providerId: event.target.value as ProviderId, model: '' });
+                  closeVaultForm();
                   setTestStatus('idle');
                   setTestMessage(null);
                 }}
@@ -181,6 +223,7 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
               <input
                 type="password"
                 value={config.apiKey}
+                disabled={vaultStatus !== 'none'}
                 placeholder={preset.apiKeyHint}
                 autoComplete="off"
                 spellCheck={false}
@@ -201,6 +244,7 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
                   spellCheck={false}
                   onChange={(event) => {
                     updateConfig({ baseUrl: event.target.value });
+                    closeVaultForm();
                     setTestStatus('idle');
                     setTestMessage(null);
                   }}
@@ -210,16 +254,112 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
 
             {preset.corsNote !== undefined && <p className="ai-hint ai-warning">{preset.corsNote}</p>}
 
-            <label className="ai-checkbox">
-              <input
-                type="checkbox"
-                checked={config.remember}
-                onChange={(event) => {
-                  updateConfig({ remember: event.target.checked });
-                }}
-              />
-              <span>Remember on this device</span>
-            </label>
+            <section className="ai-vault" aria-label="Secure key storage">
+              {vaultStatus === 'none' && (
+                <>
+                  <p className="ai-hint">
+                    The key is currently available only for this browser session.
+                  </p>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    disabled={config.apiKey.trim() === ''}
+                    onClick={() => {
+                      setVaultMode('save');
+                      setVaultMessage(null);
+                    }}
+                  >
+                    Save key securely
+                  </button>
+                </>
+              )}
+              {vaultStatus === 'locked' && (
+                <>
+                  <p className="ai-hint">An encrypted key is saved on this device and is locked.</p>
+                  <div className="ai-settings-actions">
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => {
+                        setVaultMode('unlock');
+                        setVaultMessage(null);
+                      }}
+                    >
+                      Unlock saved key
+                    </button>
+                    <button type="button" className="icon-button" onClick={() => {
+                      forgetVault();
+                      closeVaultForm();
+                    }}>
+                      Forget saved key
+                    </button>
+                  </div>
+                </>
+              )}
+              {vaultStatus === 'unlocked' && (
+                <>
+                  <p className="ai-ok">Encrypted key unlocked for this session.</p>
+                  <div className="ai-settings-actions">
+                    <button type="button" className="icon-button" onClick={() => {
+                      lockVault();
+                      closeVaultForm();
+                    }}>
+                      Lock now
+                    </button>
+                    <button type="button" className="icon-button" onClick={() => {
+                      forgetVault();
+                      closeVaultForm();
+                    }}>
+                      Forget saved key
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {vaultMode !== 'closed' && (
+                <div className="ai-vault-form">
+                  <label className="ai-field">
+                    <span>Vault password</span>
+                    <input
+                      type="password"
+                      value={vaultPassword}
+                      autoComplete={vaultMode === 'save' ? 'new-password' : 'current-password'}
+                      onChange={(event) => { setVaultPassword(event.target.value); }}
+                    />
+                  </label>
+                  {vaultMode === 'save' && (
+                    <label className="ai-field">
+                      <span>Confirm vault password</span>
+                      <input
+                        type="password"
+                        value={vaultConfirmation}
+                        autoComplete="new-password"
+                        onChange={(event) => { setVaultConfirmation(event.target.value); }}
+                      />
+                    </label>
+                  )}
+                  <p className="ai-hint">
+                    {vaultMode === 'save'
+                      ? `Use at least ${String(MIN_VAULT_PASSPHRASE_LENGTH)} characters. You will enter it once after reopening Xolio; it cannot be recovered.`
+                      : 'Unlock once for this browser session.'}
+                  </p>
+                  <div className="ai-settings-actions">
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={vaultBusy || vaultPassword === ''}
+                      onClick={submitVault}
+                    >
+                      {vaultBusy ? 'Working…' : vaultMode === 'save' ? 'Encrypt and save' : 'Unlock'}
+                    </button>
+                    <button type="button" className="icon-button" disabled={vaultBusy} onClick={closeVaultForm}>
+                      Cancel
+                    </button>
+                  </div>
+                  {vaultMessage !== null && <span className="ai-inline-error">{vaultMessage}</span>}
+                </div>
+              )}
+            </section>
 
             <div className="ai-settings-actions">
               <button
@@ -228,6 +368,7 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
                 onClick={() => {
                   stop();
                   resetConfig();
+                  closeVaultForm();
                   setTestStatus('idle');
                   setTestMessage(null);
                 }}
@@ -252,8 +393,8 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
 
             <p className="ai-hint">
               Your selected passage and question are sent to the chosen provider or endpoint when
-              you ask. Keys are kept in memory unless you enable Remember, which saves them
-              unencrypted in this browser. Only use an endpoint you trust. Changing it clears the key.
+              you ask. Keys stay in memory unless you save one in the password-encrypted local
+              vault. Only use an endpoint you trust. Changing it clears the saved key.
             </p>
           </section>
         )}

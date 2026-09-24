@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { defaultConfig } from '../ai/settings';
 import { useAiQuery } from '../ai/useAiQuery';
+import { encryptVault } from '../ai/vault';
 import type { SelectionInfo } from '../lib/marks';
 import { AiPanel } from './AiPanel';
 
@@ -34,12 +36,9 @@ describe('AiPanel', () => {
     fireEvent.change(screen.getByLabelText('Provider'), { target: { value: 'custom' } });
     fireEvent.change(screen.getByLabelText('Base URL'), { target: { value: 'https://example.com/v1' } });
     fireEvent.change(screen.getByLabelText(/API key/), { target: { value: 'test-credential' } });
-    fireEvent.click(screen.getByLabelText('Remember on this device'));
-    expect(window.localStorage.getItem('reader-ai-config')).toContain('test-credential');
     fireEvent.change(screen.getByLabelText('Provider'), { target: { value: 'deepseek' } });
     expect(screen.getByLabelText('API key')).toHaveValue('');
     expect(screen.getByLabelText('Base URL')).toHaveValue('');
-    expect(screen.getByLabelText('Remember on this device')).not.toBeChecked();
     expect(window.localStorage.getItem('reader-ai-config')).toBeNull();
   });
 
@@ -51,13 +50,45 @@ describe('AiPanel', () => {
     expect(screen.getByLabelText(/API key/)).toHaveValue('');
   });
 
-  it('clears saved AI settings on request', () => {
+  it('encrypts a saved key and clears the vault on request', async () => {
     render(<AiPanel selection={selection} onClose={() => undefined} />);
     fireEvent.change(screen.getByLabelText('API key'), { target: { value: 'test-credential' } });
-    fireEvent.click(screen.getByLabelText('Remember on this device'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save key securely' }));
+    fireEvent.change(screen.getByLabelText('Vault password'), {
+      target: { value: 'a long local vault password' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirm vault password'), {
+      target: { value: 'a long local vault password' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Encrypt and save' }));
+    await waitFor(() => {
+      expect(window.localStorage.getItem('reader-ai-vault')).not.toBeNull();
+    });
+    expect(window.localStorage.getItem('reader-ai-vault')).not.toContain('test-credential');
     fireEvent.click(screen.getByRole('button', { name: 'Clear AI settings' }));
     expect(screen.getByLabelText('API key')).toHaveValue('');
     expect(window.localStorage.getItem('reader-ai-config')).toBeNull();
+    expect(window.localStorage.getItem('reader-ai-vault')).toBeNull();
+  });
+
+  it('unlocks a saved key once for the browser session', async () => {
+    const password = 'a long local vault password';
+    const envelope = await encryptVault({ ...defaultConfig(), apiKey: 'saved-secret' }, password);
+    window.localStorage.setItem('reader-ai-vault', envelope);
+    window.localStorage.setItem('reader-ai-config', JSON.stringify({
+      providerId: 'openai', model: '', baseUrl: '', remember: true,
+    }));
+
+    render(<AiPanel selection={selection} onClose={() => undefined} />);
+    expect(screen.getByText(/encrypted key is saved.*locked/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock saved key' }));
+    fireEvent.change(screen.getByLabelText('Vault password'), { target: { value: password } });
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/unlocked for this session/i)).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText('API key')).toHaveValue('saved-secret');
   });
   it('shows provider settings, prompt variants, and the selected text', () => {
     render(<AiPanel selection={selection} onClose={() => undefined} />);

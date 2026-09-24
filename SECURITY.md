@@ -5,12 +5,20 @@ requests send the selected passage and question directly to the configured provi
 or endpoint. Never publish a shared API key in this frontend or in a `VITE_*`
 environment variable; bundled frontend values are public.
 
-API credentials are held in memory by default. Enabling **Remember on this device**
-stores the configuration, including the key, unencrypted in localStorage. Other code
-on the same origin and browser extensions may access it. Host Xolio on a dedicated
-origin, use restricted keys, and avoid remembering keys on shared devices. Changing
-the provider or endpoint clears the key. **Clear AI settings** removes the saved
-configuration. Clearing site data removes the local library and annotations too.
+API credentials are held in memory by default. **Save key securely** stores only an
+AES-256-GCM encrypted vault in localStorage. The encryption key is derived from a
+user-supplied vault password with PBKDF2-HMAC-SHA-256, a random 16-byte salt, and
+600,000 iterations. Each encryption uses a random 12-byte IV. Neither the password,
+derived key, nor plaintext API key is persisted. Legacy plaintext saved keys are
+removed from storage on first load and retained only in memory for that session.
+
+The vault protects a locked key against offline inspection of browser storage. It
+does not protect a key after the user unlocks it from same-origin malicious script,
+an XSS vulnerability, or a privileged browser extension. Host Xolio on a dedicated
+origin, keep its CSP restrictive, use restricted provider keys, and do not save keys
+on shared devices. Changing the provider or endpoint removes the vault. **Clear AI
+settings** removes the encrypted vault and saved preferences. A forgotten vault
+password cannot be recovered; reset the vault and enter the provider key again.
 
 The production build includes a Content Security Policy in HTML and emits an
 `_headers` file. Hosts that do not support that file must configure the equivalent

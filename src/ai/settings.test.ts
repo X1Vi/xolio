@@ -19,7 +19,7 @@ describe('config storage', () => {
     expect(loadStoredConfig()?.apiKey).toBe('');
     expect(loadStoredConfig()?.remember).toBe(false);
   });
-  it('round-trips a config that should be remembered', () => {
+  it('persists only non-secret preferences for an encrypted vault', () => {
     const config = {
       providerId: 'openai' as const,
       model: 'gpt-4o-mini',
@@ -28,7 +28,18 @@ describe('config storage', () => {
       remember: true,
     };
     saveStoredConfig(config);
-    expect(loadStoredConfig()).toEqual(config);
+    expect(window.localStorage.getItem('reader-ai-config')).not.toContain('sk-test');
+    expect(loadStoredConfig()).toEqual({ ...config, apiKey: '' });
+  });
+
+  it('removes a legacy plaintext key from storage while keeping it for this session', () => {
+    window.localStorage.setItem('reader-ai-config', JSON.stringify({
+      providerId: 'openai', model: '', apiKey: 'legacy-secret', baseUrl: '', remember: true,
+    }));
+    expect(loadStoredConfig()).toEqual({
+      providerId: 'openai', model: '', apiKey: 'legacy-secret', baseUrl: '', remember: false,
+    });
+    expect(window.localStorage.getItem('reader-ai-config')).toBeNull();
   });
 
   it('removes stored data when remember is off', () => {
