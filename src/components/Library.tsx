@@ -7,7 +7,6 @@ type LibraryFilter = 'all' | 'favorites';
 
 const VIEW_STORAGE_KEY = 'reader-library-view';
 const FILTER_STORAGE_KEY = 'reader-library-filter';
-const ENDORSEMENT_STORAGE_KEY = 'reader-launchfree-expanded';
 
 function loadView(): LibraryView {
   try {
@@ -22,14 +21,6 @@ function loadFilter(): LibraryFilter {
     return window.localStorage.getItem(FILTER_STORAGE_KEY) === 'favorites' ? 'favorites' : 'all';
   } catch {
     return 'all';
-  }
-}
-
-function loadEndorsementExpanded(): boolean {
-  try {
-    return window.localStorage.getItem(ENDORSEMENT_STORAGE_KEY) !== 'false';
-  } catch {
-    return true;
   }
 }
 
@@ -79,7 +70,7 @@ export function Library(props: LibraryProps) {
   const [dragging, setDragging] = useState(false);
   const [view, setView] = useState<LibraryView>(loadView);
   const [filter, setFilter] = useState<LibraryFilter>(loadFilter);
-  const [endorsementExpanded, setEndorsementExpanded] = useState(loadEndorsementExpanded);
+  const [endorsementExpanded, setEndorsementExpanded] = useState(false);
 
   useEffect(() => {
     try {
@@ -96,14 +87,6 @@ export function Library(props: LibraryProps) {
       // storage can be unavailable; the filter still works for this session
     }
   }, [filter]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(ENDORSEMENT_STORAGE_KEY, String(endorsementExpanded));
-    } catch {
-      // storage can be unavailable; the toggle still works for this session
-    }
-  }, [endorsementExpanded]);
 
   const visibleEntries = useMemo(
     () =>

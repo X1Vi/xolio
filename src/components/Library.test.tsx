@@ -105,29 +105,16 @@ describe('LaunchFree listing', () => {
     expect(images[1]).toHaveAttribute('src', '/badges/launchfree-dark.svg');
   });
 
-  it('collapses, expands, and remembers the chosen state', () => {
-    const { unmount } = render(
-      <Library
-        entries={[entry]}
-        busy={false}
-        error={null}
-        canPick={false}
-        onOpen={() => undefined}
-        onDelete={() => undefined}
-        onToggleFavorite={() => undefined}
-        onAddFile={() => undefined}
-        onAddViaPicker={() => undefined}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse LaunchFree badge' }));
-    expect(screen.getByRole('button', { name: 'Expand LaunchFree badge' })).toHaveTextContent(
-      'LaunchFree',
-    );
-    expect(window.localStorage.getItem('reader-launchfree-expanded')).toBe('false');
-
-    unmount();
+  it('starts collapsed and toggles open and closed', () => {
     renderLibrary();
+    const expandButton = screen.getByRole('button', { name: 'Expand LaunchFree badge' });
+    expect(expandButton).toHaveTextContent('LaunchFree');
+
+    fireEvent.click(expandButton);
+    const collapseButton = screen.getByRole('button', { name: 'Collapse LaunchFree badge' });
+    expect(collapseButton).toHaveTextContent('−');
+
+    fireEvent.click(collapseButton);
     expect(screen.getByRole('button', { name: 'Expand LaunchFree badge' })).toBeInTheDocument();
   });
 });
