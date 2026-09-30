@@ -90,3 +90,44 @@ describe('Library favorites', () => {
     expect(screen.getByText(/No favorites yet/)).toBeInTheDocument();
   });
 });
+
+describe('LaunchFree listing', () => {
+  it('links to the Xolio listing with locally hosted theme badges', () => {
+    renderLibrary();
+
+    const link = screen.getByRole('link', { name: 'View Xolio on LaunchFree.io' });
+    expect(link).toHaveAttribute('href', 'https://launchfree.io/listings/xolio.html');
+    expect(link).toHaveAttribute('target', '_blank');
+
+    const images = link.querySelectorAll('img');
+    expect(images).toHaveLength(2);
+    expect(images[0]).toHaveAttribute('src', '/badges/launchfree-light.svg');
+    expect(images[1]).toHaveAttribute('src', '/badges/launchfree-dark.svg');
+  });
+
+  it('collapses, expands, and remembers the chosen state', () => {
+    const { unmount } = render(
+      <Library
+        entries={[entry]}
+        busy={false}
+        error={null}
+        canPick={false}
+        onOpen={() => undefined}
+        onDelete={() => undefined}
+        onToggleFavorite={() => undefined}
+        onAddFile={() => undefined}
+        onAddViaPicker={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse LaunchFree badge' }));
+    expect(screen.getByRole('button', { name: 'Expand LaunchFree badge' })).toHaveTextContent(
+      'LaunchFree',
+    );
+    expect(window.localStorage.getItem('reader-launchfree-expanded')).toBe('false');
+
+    unmount();
+    renderLibrary();
+    expect(screen.getByRole('button', { name: 'Expand LaunchFree badge' })).toBeInTheDocument();
+  });
+});

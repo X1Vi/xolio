@@ -440,6 +440,119 @@ button:disabled {
   list-style: none;
 }
 
+.library-endorsement {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 10;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 16%);
+  backdrop-filter: blur(10px);
+  transition:
+    padding 160ms ease,
+    border-radius 160ms ease;
+}
+
+.library-endorsement-collapsed {
+  padding: 0;
+  border-color: transparent;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.endorsement-toggle {
+  position: absolute;
+  top: -0.65rem;
+  right: -0.65rem;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 14%);
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.endorsement-toggle:hover,
+.endorsement-toggle:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.library-endorsement-collapsed .endorsement-toggle {
+  position: static;
+  display: block;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 0.85rem;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.launchfree-link {
+  display: inline-flex;
+  border-radius: 12px;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.launchfree-link:hover {
+  transform: translateY(-2px);
+}
+
+.library-endorsement-collapsed .launchfree-link {
+  display: none;
+}
+
+.launchfree-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.launchfree-badge {
+  display: block;
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+}
+
+.launchfree-badge-dark {
+  display: none;
+}
+
+:root[data-theme='dark'] .launchfree-badge-light {
+  display: none;
+}
+
+:root[data-theme='dark'] .launchfree-badge-dark {
+  display: block;
+}
+
+@media (max-width: 40rem) {
+  .library-endorsement {
+    right: 50%;
+    bottom: 0.75rem;
+    transform: translateX(50%);
+  }
+
+  .launchfree-badge {
+    width: 200px;
+  }
+}
+
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));

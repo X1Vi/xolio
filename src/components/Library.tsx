@@ -7,6 +7,7 @@ type LibraryFilter = 'all' | 'favorites';
 
 const VIEW_STORAGE_KEY = 'reader-library-view';
 const FILTER_STORAGE_KEY = 'reader-library-filter';
+const ENDORSEMENT_STORAGE_KEY = 'reader-launchfree-expanded';
 
 function loadView(): LibraryView {
   try {
@@ -21,6 +22,14 @@ function loadFilter(): LibraryFilter {
     return window.localStorage.getItem(FILTER_STORAGE_KEY) === 'favorites' ? 'favorites' : 'all';
   } catch {
     return 'all';
+  }
+}
+
+function loadEndorsementExpanded(): boolean {
+  try {
+    return window.localStorage.getItem(ENDORSEMENT_STORAGE_KEY) !== 'false';
+  } catch {
+    return true;
   }
 }
 
@@ -70,6 +79,7 @@ export function Library(props: LibraryProps) {
   const [dragging, setDragging] = useState(false);
   const [view, setView] = useState<LibraryView>(loadView);
   const [filter, setFilter] = useState<LibraryFilter>(loadFilter);
+  const [endorsementExpanded, setEndorsementExpanded] = useState(loadEndorsementExpanded);
 
   useEffect(() => {
     try {
@@ -86,6 +96,14 @@ export function Library(props: LibraryProps) {
       // storage can be unavailable; the filter still works for this session
     }
   }, [filter]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ENDORSEMENT_STORAGE_KEY, String(endorsementExpanded));
+    } catch {
+      // storage can be unavailable; the toggle still works for this session
+    }
+  }, [endorsementExpanded]);
 
   const visibleEntries = useMemo(
     () =>
@@ -277,6 +295,54 @@ export function Library(props: LibraryProps) {
           event.target.value = '';
         }}
       />
+
+      <aside
+        className={
+          endorsementExpanded
+            ? 'library-endorsement'
+            : 'library-endorsement library-endorsement-collapsed'
+        }
+        aria-label="Xolio listing"
+      >
+        <button
+          type="button"
+          className="endorsement-toggle"
+          aria-expanded={endorsementExpanded}
+          aria-controls="launchfree-badge"
+          aria-label={endorsementExpanded ? 'Collapse LaunchFree badge' : 'Expand LaunchFree badge'}
+          title={endorsementExpanded ? 'Collapse' : 'Expand LaunchFree badge'}
+          onClick={() => {
+            setEndorsementExpanded((expanded) => !expanded);
+          }}
+        >
+          {endorsementExpanded ? '−' : 'LaunchFree'}
+        </button>
+        <a
+          id="launchfree-badge"
+          className="launchfree-link"
+          href="https://launchfree.io/listings/xolio.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View Xolio on LaunchFree.io"
+        >
+          <img
+            className="launchfree-badge launchfree-badge-light"
+            src="/badges/launchfree-light.svg"
+            alt="Listed on The Runway - LaunchFree.io"
+            width="250"
+            height="56"
+          />
+          <img
+            className="launchfree-badge launchfree-badge-dark"
+            src="/badges/launchfree-dark.svg"
+            alt=""
+            width="250"
+            height="56"
+            aria-hidden="true"
+          />
+        </a>
+      </aside>
+
     </main>
   );
 }
