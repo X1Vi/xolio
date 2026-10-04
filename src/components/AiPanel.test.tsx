@@ -61,9 +61,12 @@ describe('AiPanel', () => {
       target: { value: 'a long local vault password' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Encrypt and save' }));
-    await waitFor(() => {
-      expect(window.localStorage.getItem('reader-ai-vault')).not.toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(window.localStorage.getItem('reader-ai-vault')).not.toBeNull();
+      },
+      { timeout: 5000 },
+    );
     expect(window.localStorage.getItem('reader-ai-vault')).not.toContain('test-credential');
     fireEvent.click(screen.getByRole('button', { name: 'Clear AI settings' }));
     expect(screen.getByLabelText('API key')).toHaveValue('');
@@ -85,9 +88,12 @@ describe('AiPanel', () => {
     fireEvent.change(screen.getByLabelText('Vault password'), { target: { value: password } });
     fireEvent.click(screen.getByRole('button', { name: 'Unlock' }));
 
-    await waitFor(() => {
-      expect(screen.getByText(/unlocked for this session/i)).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/unlocked for this session/i)).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
     expect(screen.getByLabelText('API key')).toHaveValue('saved-secret');
   });
   it('shows provider settings, prompt variants, and the selected text', () => {

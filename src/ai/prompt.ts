@@ -35,6 +35,24 @@ export const PROMPT_ACTIONS: readonly PromptAction[] = [
     instruction:
       'Stress-test the passage: state its strongest claim, then list weaknesses, missing evidence, counterexamples, and the questions a critical reader should ask.',
   },
+  {
+    id: 'terms',
+    label: 'Define terms',
+    instruction:
+      'Define the key terms, names, jargon, and symbols in the passage as a short glossary. Give each one a one- or two-sentence definition that matches how the passage uses it.',
+  },
+  {
+    id: 'context',
+    label: 'Context',
+    instruction:
+      'Explain the historical, cultural, or scientific context a reader needs to understand the passage. Distinguish what the passage states from background knowledge you add.',
+  },
+  {
+    id: 'quiz',
+    label: 'Quiz me',
+    instruction:
+      'Create three quiz questions about the passage, moving from recall to interpretation, then list the answers separately with brief explanations.',
+  },
 ];
 
 export const CUSTOM_QUESTION_INSTRUCTION =

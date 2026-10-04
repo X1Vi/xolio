@@ -7,13 +7,14 @@ Xolio has no application server or account system. Books are opened locally. **W
 ## Features
 
 - PDF, EPUB, and Markdown (`.md`, `.markdown`, `.mdown`) support.
-- Local library with grid and list views, file import, and drag and drop.
+- Local library with grid and list views, file import, drag and drop, search, format filter, and sorting by recently opened, recently added, title, or size.
 - Linked files where the browser supports file handles; stored copies otherwise.
+- Built-in public-domain shelf with 78 classic EPUBs, search, genre shelves, and title/author/source sorting.
 - In-book search with `Ctrl+F` / `Cmd+F` and next/previous matches.
 - Highlights and bookmarks stored separately for each library entry.
 - Page navigation, PDF zoom, EPUB contents, and virtualized Markdown that renders large files as you scroll.
-- Light and dark reader themes.
-- Optional AI actions: Simplify, Explain, Summarize, Key points, Stress test, and custom questions.
+- Light and dark reader themes, plus reader display controls for text size, line spacing, and page width.
+- Optional AI actions: Simplify, Explain, Summarize, Key points, Stress test, Define terms, Context, Quiz me, and custom questions.
 - Streaming AI responses with Markdown, mathematical notation, and chemical equations.
 
 ## Run locally
@@ -50,7 +51,7 @@ Open **Ask AI → Settings**, then:
 4. Optionally select **Save key securely**, create a local vault password, and unlock it once after reopening Xolio.
 5. Use **Test connection**, then select a passage and ask a question.
 
-The application includes presets for OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Groq, Ollama, and custom OpenAI-compatible endpoints. Suggested model names are conveniences; availability depends on your provider account. Use a custom model name when a preset is unavailable. Provider adapter tests cover every preset, and **Test connection** makes a small real request with the selected credentials before reporting success.
+The application includes presets for OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Groq, xAI (Grok), Mistral, Ollama, and custom OpenAI-compatible endpoints. Suggested model names are conveniences; availability depends on your provider account. Use a custom model name when a preset is unavailable. Provider adapter tests cover every preset, and **Test connection** makes a small real request with the selected credentials before reporting success.
 
 Remote endpoints must use HTTPS. HTTP is accepted only for `localhost`, `127.0.0.1`, and `::1`. URLs containing credentials, query parameters, or fragments are rejected. Enter authentication in the API key field. Changing a provider or endpoint clears its key to prevent forwarding credentials to a different service.
 

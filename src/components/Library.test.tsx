@@ -21,6 +21,36 @@ const favoriteEntry: LibraryEntry = {
   favorite: true,
 };
 
+const alphaEntry: LibraryEntry = {
+  id: 'entry-3',
+  kind: 'copy',
+  name: 'Alpha.epub',
+  format: 'epub',
+  size: 100,
+  addedAt: 10,
+  lastOpenedAt: 30,
+};
+
+const betaEntry: LibraryEntry = {
+  id: 'entry-4',
+  kind: 'copy',
+  name: 'Beta.pdf',
+  format: 'pdf',
+  size: 300,
+  addedAt: 30,
+  lastOpenedAt: 10,
+};
+
+const gammaEntry: LibraryEntry = {
+  id: 'entry-5',
+  kind: 'copy',
+  name: 'Gamma.md',
+  format: 'markdown',
+  size: 200,
+  addedAt: 20,
+  lastOpenedAt: 20,
+};
+
 function renderLibrary(
   entries: readonly LibraryEntry[] = [entry],
   onToggleFavorite: (entry: LibraryEntry) => void = () => undefined,
@@ -36,6 +66,7 @@ function renderLibrary(
       onToggleFavorite={onToggleFavorite}
       onAddFile={() => undefined}
       onAddViaPicker={() => undefined}
+      onShowFreeBooks={() => undefined}
     />,
   );
 }
@@ -88,6 +119,60 @@ describe('Library favorites', () => {
     fireEvent.click(screen.getByRole('button', { name: '★ Favorites' }));
 
     expect(screen.getByText(/No favorites yet/)).toBeInTheDocument();
+  });
+});
+
+describe('Library search, format filter, and sort', () => {
+  it('sorts by last opened, title, size, and added date', () => {
+    renderLibrary([alphaEntry, betaEntry, gammaEntry]);
+    const names = (): string[] =>
+      screen.getAllByRole('listitem').map((item) => item.textContent);
+
+    expect(names()[0]).toContain('Alpha.epub');
+    expect(names()[2]).toContain('Beta.pdf');
+
+    fireEvent.change(screen.getByLabelText('Sort library'), { target: { value: 'title' } });
+    expect(names()[0]).toContain('Alpha.epub');
+    expect(names()[1]).toContain('Beta.pdf');
+    expect(names()[2]).toContain('Gamma.md');
+
+    fireEvent.change(screen.getByLabelText('Sort library'), { target: { value: 'size' } });
+    expect(names()[0]).toContain('Beta.pdf');
+
+    fireEvent.change(screen.getByLabelText('Sort library'), { target: { value: 'added' } });
+    expect(names()[0]).toContain('Beta.pdf');
+  });
+
+  it('filters by format and search text', () => {
+    renderLibrary([alphaEntry, betaEntry, gammaEntry]);
+
+    fireEvent.change(screen.getByLabelText('Filter by format'), { target: { value: 'markdown' } });
+    expect(screen.getByText('Gamma.md')).toBeInTheDocument();
+    expect(screen.queryByText('Beta.pdf')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Filter by format'), { target: { value: 'all' } });
+    fireEvent.change(screen.getByLabelText('Search library'), { target: { value: 'beta' } });
+    expect(screen.getByText('Beta.pdf')).toBeInTheDocument();
+    expect(screen.queryByText('Alpha.epub')).not.toBeInTheDocument();
+  });
+
+  it('shows a clearable empty state when nothing matches', () => {
+    renderLibrary([alphaEntry]);
+
+    fireEvent.change(screen.getByLabelText('Search library'), { target: { value: 'zzz' } });
+    expect(screen.getByText('No books match this view.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search and filters' }));
+    expect(screen.getByText('Alpha.epub')).toBeInTheDocument();
+  });
+
+  it('remembers the chosen sort and format', () => {
+    window.localStorage.setItem('reader-library-sort', 'title');
+    window.localStorage.setItem('reader-library-format', 'pdf');
+    renderLibrary([alphaEntry, betaEntry]);
+
+    expect(screen.getByLabelText('Sort library')).toHaveValue('title');
+    expect(screen.getByLabelText('Filter by format')).toHaveValue('pdf');
   });
 });
 

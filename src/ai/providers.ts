@@ -91,6 +91,28 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     apiKeyHint: 'gsk_…',
   },
   {
+    id: 'xai',
+    label: 'xAI (Grok)',
+    defaultModel: 'grok-4',
+    suggestedModels: ['grok-4', 'grok-4-fast', 'grok-3-mini'],
+    requiresApiKey: true,
+    requiresBaseUrl: false,
+    baseUrlEditable: false,
+    defaultBaseUrl: 'https://api.x.ai/v1',
+    apiKeyHint: 'xai-…',
+  },
+  {
+    id: 'mistral',
+    label: 'Mistral',
+    defaultModel: 'mistral-large-latest',
+    suggestedModels: ['mistral-large-latest', 'mistral-medium-latest', 'magistral-medium-latest'],
+    requiresApiKey: true,
+    requiresBaseUrl: false,
+    baseUrlEditable: false,
+    defaultBaseUrl: 'https://api.mistral.ai/v1',
+    apiKeyHint: '…',
+  },
+  {
     id: 'ollama',
     label: 'Ollama (local)',
     defaultModel: 'llama3.1',
@@ -180,6 +202,8 @@ export async function createLanguageModel(config: AiConfig): Promise<LanguageMod
     case 'deepseek':
     case 'openrouter':
     case 'groq':
+    case 'xai':
+    case 'mistral':
     case 'ollama':
     case 'custom': {
       const { createOpenAICompatible } = await import('@ai-sdk/openai-compatible');

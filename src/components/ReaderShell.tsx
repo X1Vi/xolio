@@ -1,7 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { Theme } from '../hooks/useTheme';
+import { useReaderSettings } from '../hooks/useReaderSettings';
 import type { Book } from '../lib/books';
+import { displayCssVars } from '../lib/display';
 import { APP_NAME } from '../version';
+import { DisplaySettings } from './DisplaySettings';
 import { ErrorBoundary } from './ErrorBoundary';
 import {
   useMarks,
@@ -11,7 +14,9 @@ import {
   type SelectionInfo,
 } from '../lib/marks';
 import { resolveInitialJump, saveLastBookId, saveReadingPosition } from '../lib/positions';
+import { cleanBookTitle } from '../lib/store';
 import type { MarksJumpTarget } from './MarksPanel';
+import { ShareMenu } from './ShareMenu';
 
 const PdfReader = lazy(() =>
   import('./PdfReader').then((module) => ({ default: module.PdfReader })),
@@ -50,6 +55,8 @@ export function ReaderShell(props: ReaderShellProps) {
   );
   const [aiOpen, setAiOpen] = useState(false);
   const [marksOpen, setMarksOpen] = useState(false);
+  const [displayOpen, setDisplayOpen] = useState(false);
+  const { settings: display, updateSettings, resetSettings } = useReaderSettings();
 
   useEffect(() => {
     saveLastBookId(entryId);
@@ -86,7 +93,7 @@ export function ReaderShell(props: ReaderShellProps) {
   const currentLocation = location;
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={displayCssVars(display)}>
       <header className="app-header">
         <button type="button" className="icon-button" onClick={onClose}>
           Library
@@ -149,6 +156,27 @@ export function ReaderShell(props: ReaderShellProps) {
           >
             Open
           </button>
+          <ShareMenu
+            payload={{
+              title: cleanBookTitle(book.name),
+              url: `${window.location.origin}/`,
+              text: `Reading “${cleanBookTitle(book.name)}” in Xolio`,
+              tags: ['reading', 'books'],
+              source: 'xolio',
+            }}
+          />
+          {book.format !== 'pdf' && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-expanded={displayOpen}
+              onClick={() => {
+                setDisplayOpen((open) => !open);
+              }}
+            >
+              Display
+            </button>
+          )}
           <button type="button" className="icon-button" onClick={onToggleTheme}>
             {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
@@ -167,12 +195,16 @@ export function ReaderShell(props: ReaderShellProps) {
           }}
         />
       </header>
+      {displayOpen && book.format !== 'pdf' && (
+        <DisplaySettings settings={display} onChange={updateSettings} onReset={resetSettings} />
+      )}
       {error !== null && <div className="reader-error">{error}</div>}
       <div className="app-body">
         {marksOpen && (
           <Suspense fallback={null}>
             <MarksPanel
               marks={marks}
+              bookTitle={cleanBookTitle(book.name)}
               onJump={jumpTo}
               onRemoveBookmark={removeBookmark}
               onRenameBookmark={renameBookmark}
@@ -201,6 +233,7 @@ export function ReaderShell(props: ReaderShellProps) {
                 ref={readerRef}
                 book={book}
                 theme={theme}
+                display={display}
                 highlights={marks.highlights}
                 jumpRequest={jumpRequest}
                 onSelectionChange={handleSelection}

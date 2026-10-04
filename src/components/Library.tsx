@@ -1,12 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { BookFormat } from '../lib/books';
 import type { LibraryEntry } from '../lib/library';
+import { feedbackUrl } from '../lib/links';
 import { APP_NAME, APP_VERSION } from '../version';
 
 type LibraryView = 'grid' | 'list';
 type LibraryFilter = 'all' | 'favorites';
+type LibrarySort = 'recent' | 'added' | 'title' | 'size';
+type LibraryFormatFilter = 'all' | BookFormat;
 
 const VIEW_STORAGE_KEY = 'reader-library-view';
 const FILTER_STORAGE_KEY = 'reader-library-filter';
+const SORT_STORAGE_KEY = 'reader-library-sort';
+const FORMAT_STORAGE_KEY = 'reader-library-format';
+
+const SORT_OPTIONS: readonly { readonly value: LibrarySort; readonly label: string }[] = [
+  { value: 'recent', label: 'Recently opened' },
+  { value: 'added', label: 'Recently added' },
+  { value: 'title', label: 'Title A–Z' },
+  { value: 'size', label: 'Largest first' },
+];
+
+const FORMAT_OPTIONS: readonly { readonly value: LibraryFormatFilter; readonly label: string }[] = [
+  { value: 'all', label: 'All formats' },
+  { value: 'pdf', label: 'PDF' },
+  { value: 'epub', label: 'EPUB' },
+  { value: 'markdown', label: 'Markdown' },
+];
 
 function loadView(): LibraryView {
   try {
@@ -24,6 +44,43 @@ function loadFilter(): LibraryFilter {
   }
 }
 
+function loadSort(): LibrarySort {
+  try {
+    const stored = window.localStorage.getItem(SORT_STORAGE_KEY);
+    if (stored === 'added' || stored === 'title' || stored === 'size') {
+      return stored;
+    }
+  } catch {
+    // storage can be unavailable; fall through to the default order
+  }
+  return 'recent';
+}
+
+function loadFormat(): LibraryFormatFilter {
+  try {
+    const stored = window.localStorage.getItem(FORMAT_STORAGE_KEY);
+    if (stored === 'pdf' || stored === 'epub' || stored === 'markdown') {
+      return stored;
+    }
+  } catch {
+    // storage can be unavailable; fall through to all formats
+  }
+  return 'all';
+}
+
+function compareEntries(sort: LibrarySort): (a: LibraryEntry, b: LibraryEntry) => number {
+  if (sort === 'title') {
+    return (a, b) => a.name.localeCompare(b.name);
+  }
+  if (sort === 'added') {
+    return (a, b) => b.addedAt - a.addedAt;
+  }
+  if (sort === 'size') {
+    return (a, b) => b.size - a.size;
+  }
+  return (a, b) => b.lastOpenedAt - a.lastOpenedAt;
+}
+
 interface LibraryProps {
   readonly entries: readonly LibraryEntry[] | null;
   readonly busy: boolean;
@@ -34,6 +91,7 @@ interface LibraryProps {
   readonly onToggleFavorite: (entry: LibraryEntry) => void;
   readonly onAddFile: (file: File) => void;
   readonly onAddViaPicker: () => void;
+  readonly onShowFreeBooks: () => void;
 }
 
 function formatBytes(size: number): string {
@@ -65,11 +123,15 @@ export function Library(props: LibraryProps) {
     onToggleFavorite,
     onAddFile,
     onAddViaPicker,
+    onShowFreeBooks,
   } = props;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [view, setView] = useState<LibraryView>(loadView);
   const [filter, setFilter] = useState<LibraryFilter>(loadFilter);
+  const [sort, setSort] = useState<LibrarySort>(loadSort);
+  const [format, setFormat] = useState<LibraryFormatFilter>(loadFormat);
+  const [query, setQuery] = useState('');
   const [endorsementExpanded, setEndorsementExpanded] = useState(false);
 
   useEffect(() => {
@@ -88,13 +150,47 @@ export function Library(props: LibraryProps) {
     }
   }, [filter]);
 
-  const visibleEntries = useMemo(
-    () =>
-      filter === 'favorites' && entries !== null
-        ? entries.filter((entry) => entry.favorite === true)
-        : entries,
-    [entries, filter],
-  );
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SORT_STORAGE_KEY, sort);
+    } catch {
+      // storage can be unavailable; the sort still works for this session
+    }
+  }, [sort]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FORMAT_STORAGE_KEY, format);
+    } catch {
+      // storage can be unavailable; the format filter still works for this session
+    }
+  }, [format]);
+
+  const visibleEntries = useMemo(() => {
+    if (entries === null) {
+      return null;
+    }
+    const term = query.trim().toLowerCase();
+    const matching = entries.filter((entry) => {
+      if (filter === 'favorites' && entry.favorite !== true) {
+        return false;
+      }
+      if (format !== 'all' && entry.format !== format) {
+        return false;
+      }
+      if (term !== '' && !entry.name.toLowerCase().includes(term)) {
+        return false;
+      }
+      return true;
+    });
+    return [...matching].sort(compareEntries(sort));
+  }, [entries, filter, format, query, sort]);
+
+  const filtersActive = query.trim() !== '' || format !== 'all';
+  const clearFilters = (): void => {
+    setQuery('');
+    setFormat('all');
+  };
 
   const addBook = (): void => {
     if (canPick) {
@@ -174,11 +270,62 @@ export function Library(props: LibraryProps) {
               List
             </button>
           </div>
+          <button type="button" className="icon-button" onClick={onShowFreeBooks}>
+            Free books
+          </button>
           <button type="button" className="primary-button" onClick={addBook}>
             Add book
           </button>
         </div>
       </header>
+
+      <div className="library-tools">
+        <label className="library-search-wrap">
+          <span className="visually-hidden">Search library</span>
+          <input
+            className="library-search"
+            type="search"
+            value={query}
+            placeholder="Search your library"
+            aria-label="Search library"
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
+          />
+        </label>
+        <label className="library-field">
+          <span>Format</span>
+          <select
+            value={format}
+            aria-label="Filter by format"
+            onChange={(event) => {
+              setFormat(event.target.value as LibraryFormatFilter);
+            }}
+          >
+            {FORMAT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="library-field">
+          <span>Sort</span>
+          <select
+            value={sort}
+            aria-label="Sort library"
+            onChange={(event) => {
+              setSort(event.target.value as LibrarySort);
+            }}
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {error !== null && <p className="landing-error">{error}</p>}
 
@@ -187,6 +334,13 @@ export function Library(props: LibraryProps) {
       ) : entries.length === 0 ? (
         <div className="library-empty">
           <p>No books yet. Add a PDF, EPUB, or Markdown file, or drop one here.</p>
+          <p className="ai-hint">
+            Downloaded a DRM-free EPUB or PDF? Open it here, or use “Open with Xolio” from your
+            file manager to import it straight into your library.
+          </p>
+          <button type="button" className="icon-button" onClick={onShowFreeBooks}>
+            Browse free books
+          </button>
           {canPick && (
             <p className="ai-hint">
               Files added with “Add book” stay linked to their location on disk when your browser
@@ -196,7 +350,16 @@ export function Library(props: LibraryProps) {
         </div>
       ) : visibleEntries !== null && visibleEntries.length === 0 ? (
         <div className="library-empty">
-          <p>No favorites yet. Open All and tap the star on a book to add it here.</p>
+          {filter === 'favorites' && !filtersActive ? (
+            <p>No favorites yet. Open All and tap the star on a book to add it here.</p>
+          ) : (
+            <>
+              <p>No books match this view.</p>
+              <button type="button" className="icon-button" onClick={clearFilters}>
+                Clear search and filters
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <ul
@@ -326,6 +489,21 @@ export function Library(props: LibraryProps) {
         </a>
       </aside>
 
+      <footer className="library-footer">
+        <span className="library-footer-note">Files and reading data stay on this device.</span>
+        <nav className="library-footer-links" aria-label="Xolio links">
+          <a
+            href="https://product-catalogue.x1vi.workers.dev/?ref=xolio"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            More from the creator ↗
+          </a>
+          <a href={feedbackUrl()} target="_blank" rel="noopener noreferrer">
+            Send feedback ↗
+          </a>
+        </nav>
+      </footer>
     </main>
   );
 }

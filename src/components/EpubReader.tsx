@@ -2,6 +2,7 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import { usePageTurnKeys } from '../hooks/usePageTurnKeys';
 import { useSearchShortcut } from '../hooks/useSearchShortcut';
 import type { EpubBookSource } from '../lib/books';
+import { epubDisplayStyles, type ReaderDisplaySettings } from '../lib/display';
 import {
   openEpub,
   type EpubBookHandle,
@@ -72,24 +73,6 @@ function flattenToc(items: readonly EpubNavItem[], depth = 0): TocOption[] {
   return options;
 }
 
-function themeStyles(theme: Theme): Record<string, Record<string, string>> {
-  const dark = theme === 'dark';
-  return {
-    body: {
-      background: dark ? '#1b1d22' : '#ffffff',
-      color: dark ? '#e8e8ea' : '#1b1b1f',
-      'line-height': '1.6',
-      padding: '0 6%',
-    },
-    'p, li, blockquote': {
-      'line-height': 'inherit',
-    },
-    a: {
-      color: dark ? '#9db7ff' : '#2f6fed',
-    },
-  };
-}
-
 function clearHitHighlights(rendition: EpubRendition, hits: readonly SearchHit[]): void {
   for (const hit of hits) {
     rendition.annotations.remove(hit.cfi, 'highlight');
@@ -99,6 +82,7 @@ function clearHitHighlights(rendition: EpubRendition, hits: readonly SearchHit[]
 interface EpubReaderProps {
   readonly book: EpubBookSource;
   readonly theme: Theme;
+  readonly display: ReaderDisplaySettings;
   readonly highlights: readonly Highlight[];
   readonly jumpRequest: JumpRequest | null;
   readonly onSelectionChange: (selection: SelectionInfo) => void;
@@ -107,7 +91,7 @@ interface EpubReaderProps {
 }
 
 export function EpubReader(props: EpubReaderProps) {
-  const { book, theme, highlights, jumpRequest, onSelectionChange, onLocationChange, ref } = props;
+  const { book, theme, display, highlights, jumpRequest, onSelectionChange, onLocationChange, ref } = props;
   const hostRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const bookRef = useRef<EpubBookHandle | null>(null);
@@ -116,6 +100,7 @@ export function EpubReader(props: EpubReaderProps) {
   const activeIndexRef = useRef(-1);
   const searchTokenRef = useRef(0);
   const themeRef = useRef(theme);
+  const displayRef = useRef(display);
   const currentHrefRef = useRef('');
   const userAnnotationCfisRef = useRef<readonly string[]>([]);
   const lastLocationRef = useRef<ReaderLocation | null>(null);
@@ -164,7 +149,7 @@ export function EpubReader(props: EpubReaderProps) {
     });
     bookRef.current = epubBook;
     renditionRef.current = rendition;
-    rendition.themes.default(themeStyles(themeRef.current));
+    rendition.themes.default(epubDisplayStyles(themeRef.current, displayRef.current));
     const resizeObserver = new ResizeObserver((entries) => {
       const size = entries[0]?.contentRect;
       if (size !== undefined && size.width > 0 && size.height > 0) {
@@ -282,8 +267,9 @@ export function EpubReader(props: EpubReaderProps) {
 
   useEffect(() => {
     themeRef.current = theme;
-    renditionRef.current?.themes.default(themeStyles(theme));
-  }, [theme]);
+    displayRef.current = display;
+    renditionRef.current?.themes.default(epubDisplayStyles(theme, display));
+  }, [theme, display]);
 
   useEffect(() => {
     const rendition = renditionRef.current;

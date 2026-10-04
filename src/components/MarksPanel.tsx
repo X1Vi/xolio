@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { Bookmark, MarksBundle, ReaderLocation } from '../lib/marks';
+import { learnTopicUrl } from '../lib/store';
+import { ShareMenu } from './ShareMenu';
 
 export interface MarksJumpTarget {
   readonly location: ReaderLocation;
@@ -8,6 +10,7 @@ export interface MarksJumpTarget {
 
 interface MarksPanelProps {
   readonly marks: MarksBundle;
+  readonly bookTitle: string;
   readonly onJump: (target: MarksJumpTarget) => void;
   readonly onRemoveBookmark: (id: string) => void;
   readonly onRenameBookmark: (id: string, title: string) => void;
@@ -114,12 +117,28 @@ function BookmarkRow({ bookmark, onJump, onRename, onTogglePin, onRemove }: Book
 }
 
 export function MarksPanel(props: MarksPanelProps) {
-  const { marks, onJump, onRemoveBookmark, onRenameBookmark, onTogglePinBookmark, onRemoveHighlight, onClose } = props;
+  const { marks, bookTitle, onJump, onRemoveBookmark, onRenameBookmark, onTogglePinBookmark, onRemoveHighlight, onClose } = props;
+
+  const highlightDigest = marks.highlights
+    .slice(0, 10)
+    .map((highlight) => `• ${highlight.quote}`)
+    .join('\n')
+  const sharePayload = {
+    title: `Marks from ${bookTitle}`,
+    url: `${window.location.origin}/`,
+    text:
+      highlightDigest.length > 0
+        ? `Highlights from “${bookTitle}”:\n\n${highlightDigest}`.slice(0, 1200)
+        : `Bookmarked “${bookTitle}” while reading in Xolio`,
+    tags: ['reading', 'books'],
+    source: 'xolio',
+  }
 
   return (
     <aside className="marks-panel" aria-label="Bookmarks and highlights">
       <div className="ai-panel-header">
         <span className="ai-panel-title">Marks</span>
+        <ShareMenu payload={sharePayload} label="Share marks" />
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close marks panel">
           Close
         </button>
@@ -177,6 +196,15 @@ export function MarksPanel(props: MarksPanelProps) {
                   >
                     Delete
                   </button>
+                  <a
+                    className="icon-button"
+                    href={learnTopicUrl(highlight.quote)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Find learning resources about this highlight"
+                  >
+                    Learn
+                  </a>
                 </li>
               ))}
             </ul>

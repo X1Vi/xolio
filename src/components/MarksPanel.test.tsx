@@ -34,6 +34,7 @@ describe('MarksPanel', () => {
     render(
       <MarksPanel
         marks={marks}
+        bookTitle="Test Book"
         onJump={() => undefined}
         onRemoveBookmark={() => undefined}
         onRenameBookmark={onRenameBookmark}
@@ -54,6 +55,7 @@ describe('MarksPanel', () => {
     render(
       <MarksPanel
         marks={marks}
+        bookTitle="Test Book"
         onJump={onJump}
         onRemoveBookmark={() => undefined}
         onRenameBookmark={() => undefined}
@@ -73,6 +75,7 @@ describe('MarksPanel', () => {
     render(
       <MarksPanel
         marks={pinnedMarks}
+        bookTitle="Test Book"
         onJump={() => undefined}
         onRemoveBookmark={() => undefined}
         onRenameBookmark={() => undefined}

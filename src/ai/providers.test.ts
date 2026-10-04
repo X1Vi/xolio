@@ -16,6 +16,8 @@ const expectedProviders: Record<ProviderId, string> = {
   deepseek: 'deepseek.chat',
   openrouter: 'openrouter.chat',
   groq: 'groq.chat',
+  xai: 'xai.chat',
+  mistral: 'mistral.chat',
   ollama: 'ollama.chat',
   custom: 'custom.chat',
 };
@@ -40,7 +42,7 @@ describe('AI provider adapters', () => {
   );
 
   it('keeps every hosted compatible provider on the expected HTTPS API base', () => {
-    for (const providerId of ['deepseek', 'openrouter', 'groq'] as const) {
+    for (const providerId of ['deepseek', 'openrouter', 'groq', 'xai', 'mistral'] as const) {
       const config = { ...defaultConfig(), providerId };
       expect(resolveBaseUrl(config)).toMatch(/^https:\/\//);
       expect(resolveModelName(config)).toBe(getPreset(providerId).defaultModel);

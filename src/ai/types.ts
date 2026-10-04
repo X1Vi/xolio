@@ -5,6 +5,8 @@ export type ProviderId =
   | 'deepseek'
   | 'openrouter'
   | 'groq'
+  | 'xai'
+  | 'mistral'
   | 'ollama'
   | 'custom';
 

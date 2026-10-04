@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { FreeBooksPanel } from './components/FreeBooksPanel';
 import { Library } from './components/Library';
 import { ReaderShell } from './components/ReaderShell';
 import { useTheme } from './hooks/useTheme';
@@ -6,6 +7,7 @@ import { loadBook, type Book } from './lib/books';
 import { deleteLibraryEntry, getAllLibraryEntries, putLibraryEntry } from './lib/db';
 import { canPickFiles, pickBookHandle, type LibraryEntry } from './lib/library';
 import { createCopyEntry, createHandleEntry, openEntry, saveNewEntry, type NewLibraryEntry } from './lib/libraryOps';
+import { filesFromLaunch } from './lib/launch';
 import { removeMarks } from './lib/marks';
 import {
   clearLastBookId,
@@ -28,6 +30,7 @@ export function App() {
   const [active, setActive] = useState<ActiveBook | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [freeBooksOpen, setFreeBooksOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const refresh = useCallback(async () => {
@@ -109,6 +112,20 @@ export function App() {
     [openBook, refresh],
   );
 
+  useEffect(() => {
+    const queue = window.launchQueue;
+    if (queue === undefined) {
+      return;
+    }
+    queue.setConsumer((params) => {
+      void (async () => {
+        for (const file of await filesFromLaunch(params)) {
+          await addFromFile(file);
+        }
+      })();
+    });
+  }, [addFromFile]);
+
   const addViaPicker = useCallback(async () => {
     setError(null);
     try {
@@ -176,6 +193,20 @@ export function App() {
   );
 
   if (active === null) {
+    if (freeBooksOpen) {
+      return (
+        <FreeBooksPanel
+          onImport={(file) => {
+            setFreeBooksOpen(false);
+            void addFromFile(file);
+          }}
+          onClose={() => {
+            setFreeBooksOpen(false);
+          }}
+        />
+      );
+    }
+
     return (
       <Library
         entries={entries}
@@ -193,6 +224,9 @@ export function App() {
         }}
         onDelete={removeFromLibrary}
         onToggleFavorite={toggleFavorite}
+        onShowFreeBooks={() => {
+          setFreeBooksOpen(true);
+        }}
       />
     );
   }

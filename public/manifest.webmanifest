@@ -1,0 +1,26 @@
+{
+  "name": "Xolio",
+  "short_name": "Xolio",
+  "description": "Local-first PDF, EPUB and Markdown reader with highlights, bookmarks and optional AI.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121316",
+  "theme_color": "#121316",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/epub+zip": [".epub"],
+        "application/pdf": [".pdf"]
+      }
+    }
+  ]
+}

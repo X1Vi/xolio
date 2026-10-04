@@ -53,7 +53,16 @@ describe('PROMPT_ACTIONS', () => {
   it('ships the requested variants with concrete instructions', () => {
     const labels = PROMPT_ACTIONS.map((action) => action.label);
     expect(labels).toEqual(
-      expect.arrayContaining(['Simplify', 'Explain', 'Summarize', 'Key points', 'Stress test']),
+      expect.arrayContaining([
+        'Simplify',
+        'Explain',
+        'Summarize',
+        'Key points',
+        'Stress test',
+        'Define terms',
+        'Context',
+        'Quiz me',
+      ]),
     );
     for (const action of PROMPT_ACTIONS) {
       expect(action.instruction.length).toBeGreaterThan(10);
