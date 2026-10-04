@@ -140,6 +140,16 @@ button:disabled {
   margin-left: auto;
 }
 
+.text-color-input {
+  width: 2.1rem;
+  height: 1.7rem;
+  padding: 0.15rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
 .app-header {
   display: flex;
   align-items: center;
@@ -332,6 +342,7 @@ button:disabled {
   max-width: var(--reader-width, 46rem);
   margin: 0 auto;
   padding: 2.5rem 1.5rem 6rem;
+  color: var(--reader-text-color, var(--text));
   font-size: var(--reader-font-size, 1.02rem);
   line-height: var(--reader-line-height, 1.7);
 }
@@ -683,7 +694,6 @@ button:disabled {
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-  max-width: 72rem;
 }
 
 .library-grid .library-item {

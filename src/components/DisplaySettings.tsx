@@ -1,17 +1,20 @@
+import type { Theme } from '../hooks/useTheme';
 import {
   FONT_SIZE_OPTIONS,
   LINE_SPACING_OPTIONS,
   WIDTH_OPTIONS,
+  readerTextColor,
   type ReaderDisplaySettings,
 } from '../lib/display';
 
 interface DisplaySettingsProps {
   readonly settings: ReaderDisplaySettings;
+  readonly theme: Theme;
   readonly onChange: (patch: Partial<ReaderDisplaySettings>) => void;
   readonly onReset: () => void;
 }
 
-export function DisplaySettings({ settings, onChange, onReset }: DisplaySettingsProps) {
+export function DisplaySettings({ settings, theme, onChange, onReset }: DisplaySettingsProps) {
   return (
     <div className="display-settings" aria-label="Reader display settings">
       <div className="display-group" role="group" aria-label="Text size">
@@ -67,6 +70,28 @@ export function DisplaySettings({ settings, onChange, onReset }: DisplaySettings
             </button>
           ))}
         </div>
+      </div>
+      <div className="display-group" role="group" aria-label="Text color">
+        <span className="display-group-label">Text color</span>
+        <input
+          type="color"
+          className="text-color-input"
+          aria-label="Custom text color"
+          value={readerTextColor(theme, settings)}
+          onChange={(event) => {
+            onChange({ textColor: event.target.value });
+          }}
+        />
+        <button
+          type="button"
+          className="icon-button"
+          aria-pressed={settings.textColor === null}
+          onClick={() => {
+            onChange({ textColor: null });
+          }}
+        >
+          Theme
+        </button>
       </div>
       <button type="button" className="icon-button display-reset" onClick={onReset}>
         Reset

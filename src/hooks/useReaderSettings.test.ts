@@ -12,15 +12,17 @@ describe('useReaderSettings', () => {
     const { result } = renderHook(() => useReaderSettings());
 
     act(() => {
-      result.current.updateSettings({ fontSize: 'xl', width: 'narrow' });
+      result.current.updateSettings({ fontSize: 'xl', width: 'narrow', textColor: '#f0f0f0' });
     });
 
     expect(result.current.settings).toEqual({
       fontSize: 'xl',
       lineSpacing: 'normal',
       width: 'narrow',
+      textColor: '#f0f0f0',
     });
     expect(loadDisplaySettings().fontSize).toBe('xl');
+    expect(loadDisplaySettings().textColor).toBe('#f0f0f0');
 
     act(() => {
       result.current.resetSettings();
@@ -39,6 +41,7 @@ describe('useReaderSettings', () => {
       fontSize: 'sm',
       lineSpacing: 'compact',
       width: 'wide',
+      textColor: null,
     });
   });
 });

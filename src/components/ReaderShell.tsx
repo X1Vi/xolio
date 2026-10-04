@@ -196,7 +196,12 @@ export function ReaderShell(props: ReaderShellProps) {
         />
       </header>
       {displayOpen && book.format !== 'pdf' && (
-        <DisplaySettings settings={display} onChange={updateSettings} onReset={resetSettings} />
+        <DisplaySettings
+          settings={display}
+          theme={theme}
+          onChange={updateSettings}
+          onReset={resetSettings}
+        />
       )}
       {error !== null && <div className="reader-error">{error}</div>}
       <div className="app-body">

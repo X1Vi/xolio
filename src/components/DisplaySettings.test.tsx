@@ -7,7 +7,8 @@ describe('DisplaySettings', () => {
   it('marks the active options pressed', () => {
     render(
       <DisplaySettings
-        settings={{ fontSize: 'lg', lineSpacing: 'normal', width: 'wide' }}
+        settings={{ fontSize: 'lg', lineSpacing: 'normal', width: 'wide', textColor: null }}
+        theme="dark"
         onChange={() => undefined}
         onReset={() => undefined}
       />,
@@ -15,6 +16,9 @@ describe('DisplaySettings', () => {
 
     expect(
       within(screen.getByRole('group', { name: 'Text size' })).getByRole('button', { name: 'Large' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(screen.getByRole('group', { name: 'Text color' })).getByRole('button', { name: 'Theme' }),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(
       within(screen.getByRole('group', { name: 'Text size' })).getByRole('button', { name: 'Medium' }),
@@ -35,6 +39,7 @@ describe('DisplaySettings', () => {
     render(
       <DisplaySettings
         settings={DEFAULT_DISPLAY_SETTINGS}
+        theme="dark"
         onChange={onChange}
         onReset={onReset}
       />,
@@ -54,6 +59,16 @@ describe('DisplaySettings', () => {
       within(screen.getByRole('group', { name: 'Page width' })).getByRole('button', { name: 'Narrow' }),
     );
     expect(onChange).toHaveBeenCalledWith({ width: 'narrow' });
+
+    fireEvent.change(screen.getByLabelText('Custom text color'), {
+      target: { value: '#f0f0f0' },
+    });
+    expect(onChange).toHaveBeenCalledWith({ textColor: '#f0f0f0' });
+
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Text color' })).getByRole('button', { name: 'Theme' }),
+    );
+    expect(onChange).toHaveBeenCalledWith({ textColor: null });
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(onReset).toHaveBeenCalledOnce();

@@ -9,15 +9,32 @@ export interface ReaderDisplaySettings {
   readonly fontSize: ReaderFontSize;
   readonly lineSpacing: ReaderLineSpacing;
   readonly width: ReaderWidth;
+  /** Custom body text color as `#rrggbb`, or null to follow the app theme. */
+  readonly textColor: string | null;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: ReaderDisplaySettings = {
   fontSize: 'md',
   lineSpacing: 'normal',
   width: 'normal',
+  textColor: null,
 };
 
 const DISPLAY_STORAGE_KEY = 'reader-display';
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+const THEME_TEXT_COLORS: Record<Theme, string> = {
+  light: '#1b1b1f',
+  dark: '#e8e8ea',
+};
+
+export function readerTextColor(theme: Theme, settings: ReaderDisplaySettings): string {
+  if (settings.textColor !== null) {
+    return settings.textColor;
+  }
+  return THEME_TEXT_COLORS[theme];
+}
 
 const FONT_SIZES: Record<ReaderFontSize, { readonly rem: string; readonly percent: string }> = {
   sm: { rem: '0.94rem', percent: '92%' },
@@ -77,7 +94,9 @@ export function isReaderDisplaySettings(value: unknown): value is ReaderDisplayS
   return (
     FONT_SIZE_OPTIONS.some((option) => option.value === value['fontSize']) &&
     LINE_SPACING_OPTIONS.some((option) => option.value === value['lineSpacing']) &&
-    WIDTH_OPTIONS.some((option) => option.value === value['width'])
+    WIDTH_OPTIONS.some((option) => option.value === value['width']) &&
+    (value['textColor'] === null ||
+      (typeof value['textColor'] === 'string' && HEX_COLOR.test(value['textColor'])))
   );
 }
 
@@ -88,7 +107,16 @@ export function loadDisplaySettings(): ReaderDisplaySettings {
       return DEFAULT_DISPLAY_SETTINGS;
     }
     const parsed = JSON.parse(raw) as unknown;
-    return isReaderDisplaySettings(parsed) ? parsed : DEFAULT_DISPLAY_SETTINGS;
+    if (!isRecord(parsed)) {
+      return DEFAULT_DISPLAY_SETTINGS;
+    }
+    const candidate = {
+      fontSize: parsed['fontSize'],
+      lineSpacing: parsed['lineSpacing'],
+      width: parsed['width'],
+      textColor: parsed['textColor'] ?? null,
+    };
+    return isReaderDisplaySettings(candidate) ? candidate : DEFAULT_DISPLAY_SETTINGS;
   } catch {
     return DEFAULT_DISPLAY_SETTINGS;
   }
@@ -104,23 +132,33 @@ export function saveDisplaySettings(settings: ReaderDisplaySettings): void {
 
 /** CSS variables applied to the reader shell so reflowable content follows the display settings. */
 export function displayCssVars(settings: ReaderDisplaySettings): CSSProperties {
-  return {
+  const vars: Record<string, string> = {
     '--reader-font-size': FONT_SIZES[settings.fontSize].rem,
     '--reader-line-height': LINE_SPACINGS[settings.lineSpacing],
     '--reader-width': WIDTHS[settings.width].measure,
-  } as CSSProperties;
+  };
+  if (settings.textColor !== null) {
+    vars['--reader-text-color'] = settings.textColor;
+  }
+  return vars;
 }
 
-/** Styles injected into the EPUB iframe document. */
+/**
+ * Styles injected into the EPUB iframe document. Book stylesheets often set
+ * their own text and link colors (Project Gutenberg uses `a:hover {color:red}`),
+ * so the values the reader controls are marked `!important` to win the cascade.
+ */
 export function epubDisplayStyles(
   theme: Theme,
   display: ReaderDisplaySettings,
 ): Record<string, Record<string, string>> {
   const dark = theme === 'dark';
+  const text = readerTextColor(theme, display);
   return {
     body: {
       background: dark ? '#1b1d22' : '#ffffff',
-      color: dark ? '#e8e8ea' : '#1b1b1f',
+      color: `${text} !important`,
+      'caret-color': text,
       'font-size': FONT_SIZES[display.fontSize].percent,
       'line-height': LINE_SPACINGS[display.lineSpacing],
       padding: `0 ${WIDTHS[display.width].padding}`,
@@ -128,8 +166,15 @@ export function epubDisplayStyles(
     'p, li, blockquote': {
       'line-height': 'inherit',
     },
-    a: {
-      color: dark ? '#9db7ff' : '#2f6fed',
+    'a, a:link, a:visited': {
+      color: `${dark ? '#9db7ff' : '#2f6fed'} !important`,
+    },
+    'a:hover, a:focus, a:active': {
+      color: `${dark ? '#c3d4ff' : '#1d55cf'} !important`,
+    },
+    '::selection': {
+      background: dark ? 'rgb(122 162 255 / 35%)' : 'rgb(47 111 237 / 22%)',
+      color: text,
     },
   };
 }
