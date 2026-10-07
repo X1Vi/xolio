@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval'",
+  "script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' blob:",
   "img-src 'self' blob: data:",
   "font-src 'self' blob: data:",
