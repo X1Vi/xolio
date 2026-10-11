@@ -116,6 +116,13 @@ describe('AiPanel', () => {
     );
     expect(screen.getByLabelText('API key')).toHaveValue('saved-secret');
   });
+  it('closes the provider settings with Done', () => {
+    render(<AiPanel selection={selection} onClose={() => undefined} />);
+    expect(screen.getByLabelText('Provider')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByLabelText('Provider')).not.toBeInTheDocument();
+  });
+
   it('shows provider settings, prompt variants, and the selected text', () => {
     render(<AiPanel selection={selection} onClose={() => undefined} />);
     expect(screen.getByLabelText('Provider')).toBeInTheDocument();

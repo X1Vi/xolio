@@ -389,6 +389,15 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
               {testStatus === 'error' && testMessage !== null && (
                 <span className="ai-inline-error">{testMessage}</span>
               )}
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  setSettingsOpen(false);
+                }}
+              >
+                Done
+              </button>
             </div>
 
             <p className="ai-hint">
