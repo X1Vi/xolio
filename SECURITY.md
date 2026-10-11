@@ -8,17 +8,21 @@ environment variable; bundled frontend values are public.
 API credentials are held in memory by default. **Save key securely** stores only an
 AES-256-GCM encrypted vault in localStorage. The encryption key is derived from a
 user-supplied vault password with PBKDF2-HMAC-SHA-256, a random 16-byte salt, and
-600,000 iterations. Each encryption uses a random 12-byte IV. Neither the password,
-derived key, nor plaintext API key is persisted. Legacy plaintext saved keys are
-removed from storage on first load and retained only in memory for that session.
+600,000 iterations. Each encryption uses a random 12-byte IV. The vault password is
+stored in the same localStorage origin so the key unlocks automatically on this
+device; the derived key and the plaintext API key are never persisted. Legacy
+plaintext saved keys are removed from storage on first load and retained only in
+memory for that session.
 
-The vault protects a locked key against offline inspection of browser storage. It
-does not protect a key after the user unlocks it from same-origin malicious script,
-an XSS vulnerability, or a privileged browser extension. Host Xolio on a dedicated
+Because the vault password is persisted for auto-unlock, the encrypted vault does not
+protect a key against offline inspection of browser storage on a device where it was
+saved. It does not protect a key after unlock from same-origin malicious script, an
+XSS vulnerability, or a privileged browser extension. Host Xolio on a dedicated
 origin, keep its CSP restrictive, use restricted provider keys, and do not save keys
-on shared devices. Changing the provider or endpoint removes the vault. **Clear AI
-settings** removes the encrypted vault and saved preferences. A forgotten vault
-password cannot be recovered; reset the vault and enter the provider key again.
+on shared devices. Changing the provider or endpoint removes the vault. **Lock now**
+removes the stored password; **Forget saved key** and **Clear AI settings** remove the
+encrypted vault, stored password, and saved preferences. A forgotten vault password
+cannot be recovered; reset the vault and enter the provider key again.
 
 The production build includes a Content Security Policy in HTML and emits an
 `_headers` file. Hosts that do not support that file must configure the equivalent

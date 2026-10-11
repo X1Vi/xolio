@@ -298,7 +298,7 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
               )}
               {vaultStatus === 'unlocked' && (
                 <>
-                  <p className="ai-ok">Encrypted key unlocked for this session.</p>
+                  <p className="ai-ok">Encrypted key saved and unlocked on this device.</p>
                   <div className="ai-settings-actions">
                     <button type="button" className="icon-button" onClick={() => {
                       lockVault();
@@ -340,8 +340,8 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
                   )}
                   <p className="ai-hint">
                     {vaultMode === 'save'
-                      ? `Use at least ${String(MIN_VAULT_PASSPHRASE_LENGTH)} characters. You will enter it once after reopening Xolio; it cannot be recovered.`
-                      : 'Unlock once for this browser session.'}
+                      ? `Use at least ${String(MIN_VAULT_PASSPHRASE_LENGTH)} characters. It unlocks automatically on this device and cannot be recovered.`
+                      : 'Unlock the saved key on this device.'}
                   </p>
                   <div className="ai-settings-actions">
                     <button

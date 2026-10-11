@@ -1,6 +1,7 @@
 import type { AiConfig, ProviderId } from './types';
 
 export const VAULT_STORAGE_KEY = 'reader-ai-vault';
+export const VAULT_AUTOUNLOCK_KEY = 'reader-ai-vault-auto';
 export const MIN_VAULT_PASSPHRASE_LENGTH = 12;
 export const VAULT_KDF_ITERATIONS = 600_000;
 
@@ -151,5 +152,29 @@ export function clearStoredVault(): void {
     window.localStorage.removeItem(VAULT_STORAGE_KEY);
   } catch {
     // The in-memory key can still be cleared even if browser storage is unavailable.
+  }
+}
+
+export function readVaultAutoUnlock(): string | null {
+  try {
+    return window.localStorage.getItem(VAULT_AUTOUNLOCK_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function storeVaultAutoUnlock(passphrase: string): void {
+  try {
+    window.localStorage.setItem(VAULT_AUTOUNLOCK_KEY, passphrase);
+  } catch {
+    // Auto-unlock is a convenience; the vault still unlocks manually without it.
+  }
+}
+
+export function clearStoredVaultAutoUnlock(): void {
+  try {
+    window.localStorage.removeItem(VAULT_AUTOUNLOCK_KEY);
+  } catch {
+    // Ignore; nothing else needs the removed value.
   }
 }

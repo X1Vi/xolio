@@ -48,7 +48,7 @@ Open **Ask AI → Settings**, then:
 1. Select a provider.
 2. Choose a suggested model, or enter a custom model name.
 3. For a custom endpoint, enter its base URL first, then its API key if needed.
-4. Optionally select **Save key securely**, create a local vault password, and unlock it once after reopening Xolio.
+4. Optionally select **Save key securely** and create a local vault password. The key is encrypted and then unlocked automatically on this device, so it stays available after reopening Xolio.
 5. Use **Test connection**, then select a passage and ask a question.
 
 The application includes presets for OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Groq, xAI (Grok), Mistral, Ollama, and custom OpenAI-compatible endpoints. Suggested model names are conveniences; availability depends on your provider account. Use a custom model name when a preset is unavailable. Provider adapter tests cover every preset, and **Test connection** makes a small real request with the selected credentials before reporting success.
@@ -70,7 +70,7 @@ Some remote providers or gateways block direct browser calls. The DeepSeek prese
 - Books, library metadata, bookmarks, and highlights are stored in the browser or accessed through user-approved file handles. Xolio has no sync or upload backend and includes no analytics integration.
 - AI sends the selection, instructions, and question directly to your configured provider. Responses remain in memory and are not saved as conversation history.
 - Keys stay in memory by default. Closing or reloading the app discards keys that were not saved securely.
-- **Save key securely** encrypts the key locally with AES-256-GCM. Its encryption key is derived from the vault password with PBKDF2-HMAC-SHA-256, a unique random salt, and 600,000 iterations. The password and derived key are never stored. The vault must be unlocked once after reopening Xolio.
+- **Save key securely** encrypts the key locally with AES-256-GCM. Its encryption key is derived from the vault password with PBKDF2-HMAC-SHA-256, a unique random salt, and 600,000 iterations. The password is stored alongside the vault to unlock it automatically on this device, so the saved key persists across reloads and stays unlocked until you choose **Lock now** or **Forget saved key**.
 - Local encryption protects a locked key copied from browser storage, but it cannot protect an unlocked key from malicious browser extensions or JavaScript running on the same origin. Use a dedicated origin and do not save keys on shared devices.
 - **Clear AI settings** removes the encrypted vault and saved AI preferences. Forgetting the vault password requires resetting the vault and entering the provider key again. To erase all local data, clear the site's storage in your browser; this also removes your library and annotations.
 - Markdown images, including those in AI responses, are replaced with their alternative text to prevent automatic image requests. Raw HTML is skipped. EPUB scripts are disabled, and production CSP restricts external embedded resources.

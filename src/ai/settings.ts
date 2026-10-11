@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PROVIDERS, getPreset, resolveModelName } from './providers';
 import type { AiConfig, ProviderId } from './types';
-import { clearStoredVault, decryptVault, encryptVault, readStoredVault, storeVault } from './vault';
+import {
+  clearStoredVault,
+  clearStoredVaultAutoUnlock,
+  decryptVault,
+  encryptVault,
+  readStoredVault,
+  readVaultAutoUnlock,
+  storeVault,
+  storeVaultAutoUnlock,
+} from './vault';
 
 const STORAGE_KEY = 'reader-ai-config';
 
@@ -106,6 +115,20 @@ export function validateConfig(config: AiConfig): string | null {
   return null;
 }
 
+async function unlockStoredKey(
+  passphrase: string,
+  providerId: ProviderId,
+  baseUrl: string,
+): Promise<string> {
+  const envelope = readStoredVault();
+  if (envelope === null) throw new Error('No encrypted vault was found on this device.');
+  const payload = await decryptVault(envelope, passphrase);
+  if (payload.providerId !== providerId || payload.baseUrl !== baseUrl) {
+    throw new Error('The saved key belongs to different provider settings. Reset the vault and try again.');
+  }
+  return payload.apiKey;
+}
+
 export interface AiConfigState {
   readonly config: AiConfig;
   readonly vaultStatus: 'none' | 'locked' | 'unlocked';
@@ -136,6 +159,7 @@ export function useAiConfig(): AiConfigState {
   const updateConfig = useCallback((patch: Partial<AiConfig>) => {
     if (patch.providerId !== undefined || patch.baseUrl !== undefined) {
       clearStoredVault();
+      clearStoredVaultAutoUnlock();
       setVaultStatus('none');
     }
     setConfig((current) => {
@@ -150,6 +174,7 @@ export function useAiConfig(): AiConfigState {
 
   const resetConfig = useCallback(() => {
     clearStoredVault();
+    clearStoredVaultAutoUnlock();
     setVaultStatus('none');
     setConfig(defaultConfig());
   }, []);
@@ -157,28 +182,45 @@ export function useAiConfig(): AiConfigState {
   const saveToVault = useCallback(async (passphrase: string) => {
     const envelope = await encryptVault(config, passphrase);
     storeVault(envelope);
+    storeVaultAutoUnlock(passphrase);
     setConfig((current) => ({ ...current, remember: true }));
     setVaultStatus('unlocked');
   }, [config]);
 
   const unlockVault = useCallback(async (passphrase: string) => {
-    const envelope = readStoredVault();
-    if (envelope === null) throw new Error('No encrypted vault was found on this device.');
-    const payload = await decryptVault(envelope, passphrase);
-    if (payload.providerId !== config.providerId || payload.baseUrl !== config.baseUrl) {
-      throw new Error('The saved key belongs to different provider settings. Reset the vault and try again.');
-    }
-    setConfig((current) => ({ ...current, apiKey: payload.apiKey, remember: true }));
+    const apiKey = await unlockStoredKey(passphrase, config.providerId, config.baseUrl);
+    setConfig((current) => ({ ...current, apiKey, remember: true }));
     setVaultStatus('unlocked');
   }, [config.baseUrl, config.providerId]);
 
+  useEffect(() => {
+    if (vaultStatus !== 'locked') return;
+    const passphrase = readVaultAutoUnlock();
+    if (passphrase === null) return;
+    let active = true;
+    unlockStoredKey(passphrase, config.providerId, config.baseUrl)
+      .then((apiKey) => {
+        if (!active) return;
+        setConfig((current) => ({ ...current, apiKey, remember: true }));
+        setVaultStatus('unlocked');
+      })
+      .catch(() => {
+        clearStoredVaultAutoUnlock();
+      });
+    return () => {
+      active = false;
+    };
+  }, [config.baseUrl, config.providerId, vaultStatus]);
+
   const lockVault = useCallback(() => {
+    clearStoredVaultAutoUnlock();
     setConfig((current) => ({ ...current, apiKey: '', remember: true }));
     setVaultStatus('locked');
   }, []);
 
   const forgetVault = useCallback(() => {
     clearStoredVault();
+    clearStoredVaultAutoUnlock();
     setConfig((current) => ({ ...current, remember: false }));
     setVaultStatus('none');
   }, []);

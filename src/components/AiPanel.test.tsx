@@ -90,7 +90,27 @@ describe('AiPanel', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByText(/unlocked for this session/i)).toBeInTheDocument();
+        expect(screen.getByText(/saved and unlocked on this device/i)).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
+    expect(screen.getByLabelText('API key')).toHaveValue('saved-secret');
+  });
+
+  it('auto-unlocks a saved key on a later session', async () => {
+    const password = 'a long local vault password';
+    const envelope = await encryptVault({ ...defaultConfig(), apiKey: 'saved-secret' }, password);
+    window.localStorage.setItem('reader-ai-vault', envelope);
+    window.localStorage.setItem('reader-ai-vault-auto', password);
+    window.localStorage.setItem('reader-ai-config', JSON.stringify({
+      providerId: 'openai', model: '', baseUrl: '', remember: true,
+    }));
+
+    render(<AiPanel selection={selection} onClose={() => undefined} />);
+
+    await waitFor(
+      () => {
+        expect(screen.getByText(/saved and unlocked on this device/i)).toBeInTheDocument();
       },
       { timeout: 10000 },
     );

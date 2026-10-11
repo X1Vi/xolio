@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultConfig } from './settings';
 import {
+  VAULT_AUTOUNLOCK_KEY,
   VAULT_KDF_ITERATIONS,
   VAULT_STORAGE_KEY,
   clearStoredVault,
+  clearStoredVaultAutoUnlock,
   decryptVault,
   encryptVault,
   readStoredVault,
+  readVaultAutoUnlock,
   storeVault,
+  storeVaultAutoUnlock,
 } from './vault';
 
 const passphrase = 'a long local vault password';
@@ -51,5 +55,14 @@ describe('encrypted AI key vault', () => {
     expect(window.localStorage.getItem(VAULT_STORAGE_KEY)).not.toContain('secret-key');
     clearStoredVault();
     expect(readStoredVault()).toBeNull();
+  });
+
+  it('persists and clears the auto-unlock password', () => {
+    expect(readVaultAutoUnlock()).toBeNull();
+    storeVaultAutoUnlock(passphrase);
+    expect(window.localStorage.getItem(VAULT_AUTOUNLOCK_KEY)).toBe(passphrase);
+    expect(readVaultAutoUnlock()).toBe(passphrase);
+    clearStoredVaultAutoUnlock();
+    expect(readVaultAutoUnlock()).toBeNull();
   });
 });
