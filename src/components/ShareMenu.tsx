@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { SHARE_TARGETS, share } from '../lib/share'
 import type { SharePayload, ShareTarget } from '../lib/share'
+import { UiIcon } from './UiIcon'
 
 interface ShareMenuProps {
   readonly payload: SharePayload
@@ -77,7 +78,7 @@ export function ShareMenu({
           setOpen(true)
         }}
       >
-        {label}
+        <UiIcon name="share" /> {label}
       </button>
 
       {open &&

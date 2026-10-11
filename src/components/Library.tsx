@@ -3,6 +3,7 @@ import type { BookFormat } from '../lib/books';
 import type { LibraryEntry } from '../lib/library';
 import { feedbackUrl } from '../lib/links';
 import { APP_NAME, APP_VERSION } from '../version';
+import { UiIcon } from './UiIcon';
 
 type LibraryView = 'grid' | 'list';
 type LibraryFilter = 'all' | 'favorites';
@@ -219,11 +220,22 @@ export function Library(props: LibraryProps) {
         }
       }}
     >
+      {dragging && (
+        <div className="library-drop-overlay" aria-hidden="true">
+          <div><UiIcon name="plus" size={28} /><strong>Drop to add to Xolio</strong><span>PDF, EPUB, or Markdown</span></div>
+        </div>
+      )}
       <header className="library-header">
-        <h1 className="landing-title">{APP_NAME}</h1>
-        <span className="library-version" title={`${APP_NAME} version`}>
-          v{APP_VERSION}
-        </span>
+        <div className="library-brand">
+          <span className="brand-mark" aria-hidden="true"><UiIcon name="books" size={22} /></span>
+          <div>
+            <div className="library-title-row">
+              <h1 className="landing-title">{APP_NAME}</h1>
+              <span className="library-version" title={`${APP_NAME} version`}>v{APP_VERSION}</span>
+            </div>
+            <p>Your quiet place to read</p>
+          </div>
+        </div>
         <div className="library-actions">
           {busy && <span className="library-busy">Working…</span>}
           <div className="view-toggle" role="group" aria-label="Library filter">
@@ -235,7 +247,7 @@ export function Library(props: LibraryProps) {
                 setFilter('all');
               }}
             >
-              All
+              All books
             </button>
             <button
               type="button"
@@ -257,7 +269,7 @@ export function Library(props: LibraryProps) {
                 setView('grid');
               }}
             >
-              Grid
+              <UiIcon name="grid" /><span className="control-label">Grid</span>
             </button>
             <button
               type="button"
@@ -267,20 +279,21 @@ export function Library(props: LibraryProps) {
                 setView('list');
               }}
             >
-              List
+              <UiIcon name="list" /><span className="control-label">List</span>
             </button>
           </div>
           <button type="button" className="icon-button" onClick={onShowFreeBooks}>
-            Free books
+            <UiIcon name="library" /> Free books
           </button>
           <button type="button" className="primary-button" onClick={addBook}>
-            Add book
+            <UiIcon name="plus" /> Add book
           </button>
         </div>
       </header>
 
       <div className="library-tools">
         <label className="library-search-wrap">
+          <UiIcon name="search" />
           <span className="visually-hidden">Search library</span>
           <input
             className="library-search"
@@ -329,10 +342,22 @@ export function Library(props: LibraryProps) {
 
       {error !== null && <p className="landing-error">{error}</p>}
 
+      {entries !== null && entries.length > 0 && (
+        <div className="library-section-heading">
+          <div>
+            <span className="section-eyebrow">Your collection</span>
+            <h2>{filter === 'favorites' ? 'Favorite reads' : 'Library'}</h2>
+          </div>
+          <span className="library-count">{visibleEntries?.length ?? 0} {(visibleEntries?.length ?? 0) === 1 ? 'book' : 'books'}</span>
+        </div>
+      )}
+
       {entries === null ? (
         <p className="library-empty">Loading library…</p>
       ) : entries.length === 0 ? (
         <div className="library-empty">
+          <span className="empty-illustration" aria-hidden="true"><UiIcon name="books" size={34} /></span>
+          <h2>Build your personal library</h2>
           <p>No books yet. Add a PDF, EPUB, or Markdown file, or drop one here.</p>
           <p className="ai-hint">
             Downloaded a DRM-free EPUB or PDF? Open it here, or use “Open with Xolio” from your
@@ -369,9 +394,10 @@ export function Library(props: LibraryProps) {
           {visibleEntries?.map((entry) => (
             <li key={entry.id} className="library-item">
               <div className="library-item-main">
-                <span className={`format-badge format-${entry.format}`}>
-                  {entry.format.toUpperCase()}
-                </span>
+                <div className={`book-cover book-cover-${entry.format}`} aria-hidden="true">
+                  <span className="book-cover-mark">{entry.name.slice(0, 1).toUpperCase()}</span>
+                  <span className={`format-badge format-${entry.format}`}>{entry.format.toUpperCase()}</span>
+                </div>
                 <div className="library-item-text">
                   <span className="library-item-name" title={entry.name}>
                     {entry.name}
@@ -410,7 +436,7 @@ export function Library(props: LibraryProps) {
                     onOpen(entry);
                   }}
                 >
-                  Open
+                  Open <span aria-hidden="true">→</span>
                 </button>
                 <button
                   type="button"
@@ -420,7 +446,7 @@ export function Library(props: LibraryProps) {
                     onDelete(entry);
                   }}
                 >
-                  Remove
+                  <UiIcon name="trash" /><span className="control-label">Remove</span>
                 </button>
               </div>
             </li>

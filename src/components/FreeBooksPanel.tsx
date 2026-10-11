@@ -60,18 +60,16 @@ export function FreeBooksPanel({ onImport, onClose }: FreeBooksPanelProps) {
   return (
     <div className="free-books-backdrop">
       <aside className="free-books-panel" aria-label="Free books">
-        <header className="free-books-header">
-          <div className="free-books-heading">
-            <span className="free-books-kicker">Xolio public library</span>
-            <h2>Great books.<br /><em>Yours to keep.</em></h2>
-            <p>{freeBooks.length} carefully formatted classics, free to download and read offline.</p>
-          </div>
-          <button type="button" className="free-books-close" onClick={onClose} aria-label="Back to library">
-            <span aria-hidden="true">←</span><span>Library</span>
-          </button>
-        </header>
-
         <div className="free-books-tools">
+          <div className="free-books-nav">
+            <button type="button" className="free-books-close" onClick={onClose} aria-label="Back to library">
+              <span aria-hidden="true">←</span><span>Library</span>
+            </button>
+            <div>
+              <strong>Free books</strong>
+              <span>{freeBooks.length} classics</span>
+            </div>
+          </div>
           <label className="free-books-search-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>
             <span className="visually-hidden">Search free books</span>

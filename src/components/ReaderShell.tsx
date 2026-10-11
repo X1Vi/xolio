@@ -17,6 +17,7 @@ import { resolveInitialJump, saveLastBookId, saveReadingPosition } from '../lib/
 import { cleanBookTitle } from '../lib/store';
 import type { MarksJumpTarget } from './MarksPanel';
 import { ShareMenu } from './ShareMenu';
+import { UiIcon } from './UiIcon';
 
 const PdfReader = lazy(() =>
   import('./PdfReader').then((module) => ({ default: module.PdfReader })),
@@ -95,12 +96,13 @@ export function ReaderShell(props: ReaderShellProps) {
   return (
     <div className="app-shell" style={displayCssVars(display)}>
       <header className="app-header">
-        <button type="button" className="icon-button" onClick={onClose}>
-          Library
+        <button type="button" className="icon-button reader-library-button" onClick={onClose}>
+          <UiIcon name="arrow-left" /> Library
         </button>
-        <h1 className="app-title" title={book.name}>
-          {book.name}
-        </h1>
+        <div className="reader-title-block">
+          <span className="reader-format">{book.format}</span>
+          <h1 className="app-title" title={book.name}>{book.name}</h1>
+        </div>
         <div className="app-actions">
           <button
             type="button"
@@ -113,7 +115,7 @@ export function ReaderShell(props: ReaderShellProps) {
               }
             }}
           >
-            Bookmark
+            <UiIcon name="bookmark" /><span className="action-label">Bookmark</span>
           </button>
           <button
             type="button"
@@ -125,7 +127,7 @@ export function ReaderShell(props: ReaderShellProps) {
               }
             }}
           >
-            Highlight
+            <UiIcon name="highlight" /><span className="action-label">Highlight</span>
           </button>
           <button
             type="button"
@@ -135,7 +137,7 @@ export function ReaderShell(props: ReaderShellProps) {
               setMarksOpen((open) => !open);
             }}
           >
-            Marks{markCount > 0 ? ` (${String(markCount)})` : ''}
+            <UiIcon name="books" /><span className="action-label">Marks</span>{markCount > 0 ? <span className="action-count">{String(markCount)}</span> : null}
           </button>
           <button
             type="button"
@@ -145,7 +147,7 @@ export function ReaderShell(props: ReaderShellProps) {
               setAiOpen(true);
             }}
           >
-            Ask AI
+            <UiIcon name="sparkles" /><span className="action-label">Ask AI</span>
           </button>
           <button
             type="button"
@@ -154,7 +156,7 @@ export function ReaderShell(props: ReaderShellProps) {
               inputRef.current?.click();
             }}
           >
-            Open
+            <UiIcon name="open" /><span className="action-label">Open</span>
           </button>
           <ShareMenu
             payload={{
@@ -174,11 +176,11 @@ export function ReaderShell(props: ReaderShellProps) {
                 setDisplayOpen((open) => !open);
               }}
             >
-              Display
+              <UiIcon name="tune" /><span className="action-label">Display</span>
             </button>
           )}
           <button type="button" className="icon-button" onClick={onToggleTheme}>
-            {theme === 'dark' ? 'Light' : 'Dark'}
+            <UiIcon name={theme === 'dark' ? 'sun' : 'moon'} /><span className="action-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
         </div>
         <input
