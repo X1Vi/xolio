@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { testAiConnection } from '../ai/connection';
 import { describeAiError } from '../ai/errors';
 import {
@@ -12,11 +12,21 @@ import type { ProviderId } from '../ai/types';
 import { useAiQuery } from '../ai/useAiQuery';
 import { MIN_VAULT_PASSPHRASE_LENGTH } from '../ai/vault';
 import type { SelectionInfo } from '../lib/marks';
+import {
+  MIN_AI_PANEL_WIDTH,
+  clampAiPanelWidth,
+  loadAiPanelWidth,
+  maxAiPanelWidth,
+  saveAiPanelWidth,
+} from '../lib/panelWidth';
 import { MarkdownText } from './MarkdownText';
 
 type TestStatus = 'idle' | 'testing' | 'ok' | 'error';
 
 const CUSTOM_MODEL_VALUE = '__custom__';
+
+const KEYBOARD_RESIZE_STEP = 16;
+const KEYBOARD_RESIZE_STEP_LARGE = 48;
 
 interface AiPanelProps {
   readonly selection: SelectionInfo;
@@ -62,6 +72,8 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
   const [vaultBusy, setVaultBusy] = useState(false);
   const answerRef = useRef<HTMLElement>(null);
   const { answer, status, error, ask, stop } = useAiQuery(config);
+  const [panelWidth, setPanelWidth] = useState(loadAiPanelWidth);
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const [trackedSelection, setTrackedSelection] = useState(selection.text);
   if (trackedSelection !== selection.text) {
     setTrackedSelection(selection.text);
@@ -80,6 +92,56 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
     : config.model === '' && modelOptions.includes(preset.defaultModel)
       ? preset.defaultModel
       : CUSTOM_MODEL_VALUE;
+
+  useEffect(() => {
+    saveAiPanelWidth(panelWidth);
+  }, [panelWidth]);
+
+  const applyWidth = useCallback((next: number) => {
+    setPanelWidth(clampAiPanelWidth(next));
+  }, []);
+
+  const startResize = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      dragStateRef.current = { startX: event.clientX, startWidth: panelWidth };
+      const stopResize = () => {
+        dragStateRef.current = null;
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', stopResize);
+      };
+      const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+        const drag = dragStateRef.current;
+        if (drag === null) {
+          return;
+        }
+        applyWidth(drag.startWidth + (drag.startX - moveEvent.clientX));
+      };
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', stopResize);
+    },
+    [applyWidth, panelWidth],
+  );
+
+  const resizeWithKeyboard = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      const step = event.shiftKey ? KEYBOARD_RESIZE_STEP_LARGE : KEYBOARD_RESIZE_STEP;
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        applyWidth(panelWidth + step);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        applyWidth(panelWidth - step);
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        applyWidth(MIN_AI_PANEL_WIDTH);
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        applyWidth(maxAiPanelWidth());
+      }
+    },
+    [applyWidth, panelWidth],
+  );
 
   const run = useCallback(
     (instructions: string, label: string, customQuestion = '', passage = selection.text) => {
@@ -142,7 +204,23 @@ export function AiPanel({ selection, onClose }: AiPanelProps) {
   }, [closeVaultForm, saveToVault, unlockVault, vaultConfirmation, vaultMode, vaultPassword]);
 
   return (
-    <aside className="ai-panel" aria-label="Ask AI">
+    <aside
+      className="ai-panel"
+      aria-label="Ask AI"
+      style={{ '--ai-panel-width': `${String(panelWidth)}px` } as CSSProperties}
+    >
+      <div
+        className="ai-panel-resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize AI panel"
+        aria-valuenow={panelWidth}
+        aria-valuemin={MIN_AI_PANEL_WIDTH}
+        aria-valuemax={maxAiPanelWidth()}
+        tabIndex={0}
+        onPointerDown={startResize}
+        onKeyDown={resizeWithKeyboard}
+      />
       <div className="ai-panel-header">
         <div className="ai-panel-title-block">
           <span className="ai-panel-title">Ask AI</span>

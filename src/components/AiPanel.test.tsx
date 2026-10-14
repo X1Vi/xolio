@@ -236,4 +236,17 @@ describe('AiPanel', () => {
     fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'gpt-4o' } });
     expect(screen.getByLabelText('Model')).toHaveValue('gpt-4o');
   });
+
+  it('resizes the panel with the keyboard and persists the width', () => {
+    render(<AiPanel selection={selection} onClose={() => undefined} />);
+    const handle = screen.getByRole('separator', { name: 'Resize AI panel' });
+    expect(handle).toHaveAttribute('aria-valuenow', '384');
+
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(handle).toHaveAttribute('aria-valuenow', '400');
+    expect(window.localStorage.getItem('reader-ai-panel-width')).toBe('400');
+
+    fireEvent.keyDown(handle, { key: 'ArrowLeft', shiftKey: true });
+    expect(handle).toHaveAttribute('aria-valuenow', '448');
+  });
 });
